@@ -1,0 +1,430 @@
+    .credit-wrapper {
+  padding: 15px;
+}
+
+.header-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.grid{
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+.debit-section-card{
+  border: 1px solid #e5e7eb;
+  width: 305%;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.05);
+  background: white;
+  border-radius: 6px;
+  padding: 10px;
+  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.debit-section-card input,
+.debit-section-card select {
+  height: 30px;
+  padding: 4px 8px;
+  font-size: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.debit-dispatch-section{
+  border: 1px solid #e5e7eb;
+  width: 100%;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.05);
+  background: white;
+  border-radius: 6px;
+  padding: 10px;
+  margin-bottom: 10px;
+  display: flex;
+  gap: 12px;
+
+}
+.dispatch-section{
+  width: 100%;
+}
+.dn-header{
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr;  /* Invoice bigger */
+  gap: 12px;
+  align-items: end;
+}
+.dn-input-box{
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.dn-voucher-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: -8px;
+}
+.dn-voucher-row label {
+  font-size: 12px;
+  color: #6b7280;
+}
+.debit-voucher-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #6366f1;
+  background: #f3f0ff;
+  padding: 3px 10px;
+  border-radius: 6px;
+}
+.debit-header{
+      display: flex;
+    align-items: center;
+    gap: 16px;
+    border-radius: 14px;
+    padding: 13px 5px;
+    width: fit-content;
+    margin-top: -4px;
+}
+.debit-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  background: #f3f0ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.debit-icon i {
+    font-size: 24px;
+    color: #6366f1;
+}
+.dn-form-group{
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.dn-form-group label{
+  font-size: 11px;
+  color: #6b7280;
+}
+.dn-cust-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 12px;
+  background: #f3f0ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dn-cust-icon i {
+    font-size: 18px;
+    color: #6366f1;
+}
+.dn-cust-details{
+      display: flex;
+    align-items: center;
+    gap: 16px;
+    border-radius: 14px;
+    padding: 13px 5px;
+    width: fit-content;
+    margin-bottom: -21px;
+}
+.dn-cost-details{
+      display: flex;
+    align-items: center;
+    gap: 16px;
+    border-radius: 14px;
+    padding: 13px 5px;
+    width: fit-content;
+}
+.dn-no-group{
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+ 
+}
+.dn-no-group label{
+    font-size: 11px;
+    color: #6b7280;
+    /* gap: 6px;
+    margin-bottom: 6px; */
+}
+.debit-search-box {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.debit-search-input-wrapper {
+  position: relative;
+}
+.debit-search-input-wrapper input {
+  width: 300px;
+  padding: 8px 12px 8px 36px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+}
+.dn-new-customer-btn {
+  padding: 5px 16px;
+  background: #f3f0ff;
+  border: 1px solid #bfdbfe;
+  color: #6366f1;
+  border-radius: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.dn-customer-card-title svg {
+  color: #6366f1;
+  font-size: 14px;
+}
+
+.dn-customer-card-title,
+.dn-edit-btn
+ {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dn-edit-btn {
+  padding: 4px 12px;
+  background:  #6366f1;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: white;
+  cursor: pointer;
+}
+.dn-new-customer-btn:hover {
+  background: #dbeafe;
+}
+.dn-add-item-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 4px 6px;
+  margin-top: 12px;
+  border: none;
+  border-radius: 6px;
+  background: #6366f1;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dn-add-item-btn:hover {
+  background: #6366f1;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.25);
+}
+.dn-tax-summary {
+  width: 230px;
+  margin-left: auto;
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.dn-summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 4px;
+}
+
+.dn-summary-row span:last-child {
+  color: #6366f1;
+  font-weight: 700;
+}
+.customer-box {
+  display: flex;
+  gap: 10px;
+}
+.dis-no{
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.dis-no label{
+      font-size: 11px;
+    color: #6b7280;
+}
+.Bill{
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.Bill label{
+  font-size: 11px;
+    color: #6b7280;
+}
+.Vec{
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.Vec label{
+   font-size: 11px;
+    color: #6b7280;
+}
+.Trans-gs{
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.e-way{
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.e-way label{
+font-size: 11px;
+    color: #6b7280;
+}
+.e-date{
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.e-date label{
+font-size: 11px;
+    color: #6b7280;
+}
+.e-date input{
+  width: 55%;
+    padding: 5px;
+    border-radius: 8px;
+    border: 1px solid #E5E7EB;
+}
+.dis-date{
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.dis-date label{
+  font-size: 11px;
+    color: #6b7280;
+}
+.dis-date input{
+  width: 55%;
+    padding: 5px;
+    border-radius: 8px;
+    border: 1px solid #E5E7EB;
+
+}
+.Trans-gs label{
+   font-size: 11px;
+    color: #6b7280;
+}
+.card {
+  border: 1px solid #ddd;
+  padding: 10px;
+  width: 50%;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+table th, table td {
+  border: 1px solid #ddd;
+  padding: 5px;
+}
+
+.total-summary {
+  text-align: right;
+  margin-top: 10px;
+}
+
+.total {
+  font-weight: bold;
+}
+
+.submit-actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 10px;
+}
+
+.items-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.items-table th {
+  background: #1e293b;
+  color: white;
+  font-size: 12px;
+  padding: 6px;
+}
+
+.items-table td {
+  border: 1px solid #e5e7eb;
+  padding: 4px;
+}
+
+.items-table input,
+.items-table select {
+  width: 100%;
+  height: 28px;
+  font-size: 12px;
+}
+
+
+/* ================== TAX SUMMARY ================== */
+
+.tax-summary-box {
+  width: 250px;
+  margin-left: auto;
+  margin-top: 10px;
+  border: 1px solid #e5e7eb;
+  padding: 8px;
+  font-size: 13px;
+}
+
+.tax-summary-box .total {
+  font-weight: bold;
+}
+
+/* ================== FOOTER ================== */
+
+.footer-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.footer-actions button {
+  padding: 6px 12px;
+  font-size: 13px;
+  border: none;
+  border-radius: 4px;
+}
+
+.footer-actions button:nth-child(1) {
+  background: green;
+  color: white;
+}
+
+.footer-actions button:nth-child(2) {
+  background: blue;
+  color: white;
+}
+
+.footer-actions button:nth-child(3) {
+  background: red;
+  color: white;
+}
