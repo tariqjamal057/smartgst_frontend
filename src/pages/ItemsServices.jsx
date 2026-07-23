@@ -16,103 +16,39 @@ export default function ItemsServices() {
 
   /* ================= PRODUCTS ================= */
 
-  const productNames = [
-    "Laptop","Mouse","Keyboard","Monitor","Printer","Desk","Chair",
-    "Pen Drive","Hard Disk","Scanner","Tablet","Speaker","Webcam",
-    "Router","Projector","Mobile","Headphones","Power Bank","Cable","SSD"
-  ];
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const transactionNames = [
-    "Amit Traders","Ravi Enterprises","Kiran Sales","Jay Distributors",
-    "Mahesh Store","Vijay Mart","Suresh Agency","Ganesh Traders",
-    "Deepak Sales","Shivam Mart","Om Distributors","Royal Traders",
-    "Prime Store","Modern Sales","National Mart","Perfect Traders",
-    "Metro Sales","Sunrise Traders","Global Mart","Future Traders"
-  ];
-  const servicesData = [
-  {
-    id: 1,
-    name: "Installation Services",
-    qty: 10,
-    avgRate: 10000,
-    closingBalance: 100000,
-
-    transactions: [
-      {
-        id: 1,
-        type: "Service Invoice",
-        name: "Bismi Enterprises",
-        date: "05-04-2026",
-        qty: 2,
-        price: 10000,
-        status: "Paid"
+  useEffect(() => {
+    (async () => {
+      try {
+        const [itemsRes, catsRes] = await Promise.all([
+          services.getItems(),
+          services.getItemCategories(),
+        ]);
+        const items = itemsRes.data.results || itemsRes.data || [];
+        const cats = catsRes.data.results || catsRes.data || [];
+        const mapped = items.map((item) => ({
+          id: item.id,
+          name: item.name,
+          purchasePrice: item.purchase_price ?? 0,
+          salePrice: item.sale_price ?? 0,
+          stockQty: item.opening_stock ?? 0,
+          unit: item.primary_unit || "",
+          godown: item.godown || "",
+          category: item.category || "",
+          type: item.type || "",
+          transactions: item.transactions || [],
+        }));
+        setProducts(mapped);
+        setCategoryList(cats.map((c) => c.name));
+      } catch (err) {
+        console.error("Failed to load items:", err);
+      } finally {
+        setLoading(false);
       }
-    ]
-  },
-
-  {
-    id: 2,
-    name: "Office Maintenance",
-    qty: 25,
-    avgRate: 15200,
-    closingBalance: 380000,
-
-    transactions: [
-      {
-        id: 1,
-        type: "AMC",
-        name: "National Traders",
-        date: "08-04-2026",
-        qty: 5,
-        price: 15200,
-        status: "Received"
-      }
-    ]
-  },
-
-  {
-    id: 3,
-    name: "Repair",
-    qty: 3,
-    avgRate: 5000,
-    closingBalance: 15000,
-
-    transactions: [
-      {
-        id: 1,
-        type: "Repair",
-        name: "Metro Sales",
-        date: "11-04-2026",
-        qty: 1,
-        price: 5000,
-        status: "Paid"
-      }
-    ]
-  }
-];
-
-  const generateTransactions = () =>
-    Array.from({ length: 5 }, (_, i) => ({
-      id: i + 1,
-      type: i % 2 === 0 ? "Purchase" : "Sale",
-      name: transactionNames[(i + Math.floor(Math.random()*10)) % transactionNames.length],
-      date: `2026-02-${String((i%9)+1).padStart(2,"0")}`,
-      qty: 1 + i,
-      price: 1000 + i * 150,
-      status: i % 2 === 0 ? "Paid" : "Received"
-    }));
-
-  const initialProducts = productNames.map((name, index) => ({
-    id: index + 1,
-    name,
-    purchasePrice: 2000 + index * 400,
-    salePrice: 2500 + index * 450,
-    stockQty: index % 4 === 0 ? 0 : 10 + index,
-    unit: "PCS",
-    transactions: generateTransactions()
-  }));
-
-  const [products, setProducts] = useState(initialProducts);
+    })();
+  }, []);
 
   /* ================= FILTER PRODUCTS ================= */
 
@@ -152,26 +88,47 @@ export default function ItemsServices() {
   });
 
   const handleAdd = async () => {
-    const newObj = {
-      id: products.length+1,
-      name: newProduct.name,
-      purchasePrice: Number(newProduct.purchasePrice),
-      salePrice: Number(newProduct.salePrice),
-      stockQty: Number(newProduct.stockQty),
-      unit:"PCS",
-      transactions: generateTransactions()
-    };
-    setProducts([...products, newObj]);
-    setShowModal(false);
     try {
       await services.createItem({
         name: newProduct.name,
         purchase_price: Number(newProduct.purchasePrice),
         sale_price: Number(newProduct.salePrice),
         opening_stock: Number(newProduct.stockQty),
-        primary_unit: "PCS",
+        primary_unit: newProduct.unit || "PCS",
+        category: newProduct.category || "",
+        type: newProduct.type || "",
+        hsn: newProduct.hsn || "",
+        description: newProduct.description || "",
+        gst_rate: newProduct.rate || "",
+        taxability: newProduct.taxability || "",
+        opening_qty: openingQty || "",
+        opening_rate: openingRate || "",
+        opening_amount: openingAmount || "",
       });
-    } catch (err) { console.error(err); }
+      const res = await services.getItems();
+      const items = res.data.results || res.data || [];
+      const mapped = items.map((item) => ({
+        id: item.id,
+        name: item.name,
+        purchasePrice: item.purchase_price ?? 0,
+        salePrice: item.sale_price ?? 0,
+        stockQty: item.opening_stock ?? 0,
+        unit: item.primary_unit || "",
+        godown: item.godown || "",
+        category: item.category || "",
+        type: item.type || "",
+        transactions: item.transactions || [],
+      }));
+      setProducts(mapped);
+    } catch (err) {
+      console.error(err);
+    }
+    setNewProduct({ name: "", purchasePrice: "", salePrice: "", stockQty: "" });
+    setOpeningQty("");
+    setOpeningRate("");
+    setOpeningAmount("");
+    setUnitSearch("");
+    setShowModal(false);
   };
   const units = [
   { code: "BAG", name: "Bags" },
@@ -219,7 +176,7 @@ useEffect(() => {
   return () => document.removeEventListener("mousedown", handleClickOutside);
 }, []);
 
-const [godownList, setGodownList] = useState(["Main Store"]);
+const [godownList, setGodownList] = useState([]);
 const [selectedGodown, setSelectedGodown] = useState("");
 
 const [showGodownModal, setShowGodownModal] = useState(false);
@@ -228,25 +185,26 @@ const [categoryForm, setCategoryForm] = useState({
   name: "",
   description: ""
 });
-const saveCategory = () => {
+const saveCategory = async () => {
 
   if (!categoryForm.name.trim()) return;
 
-  // ADD CATEGORY
-
-  setCategoryList([
-    ...categoryList,
-    categoryForm.name
-  ]);
-
-  // AUTO SELECT NEW CATEGORY
+  try {
+    await services.createItemCategory({
+      name: categoryForm.name,
+      description: categoryForm.description,
+    });
+    const res = await services.getItemCategories();
+    const cats = res.data.results || res.data || [];
+    setCategoryList(cats.map((c) => c.name));
+  } catch (err) {
+    console.error("Failed to create category:", err);
+  }
 
   setNewProduct({
     ...newProduct,
     category: categoryForm.name
   });
-
-  // RESET FORM
 
   setCategoryForm({
     name: "",
@@ -254,10 +212,7 @@ const saveCategory = () => {
   });
 
 };
-const [categoryList, setCategoryList] = useState([
-  "Electronics",
-  "Accessories"
-]);
+const [categoryList, setCategoryList] = useState([]);
 const [newGodown, setNewGodown] = useState({
   name: "",
   address: ""
@@ -663,7 +618,7 @@ const [openingAmount, setOpeningAmount] = useState("");
                 <span>Action</span>
               </div>
               {/* ROWS */}
-              {servicesData
+              {products
                 .filter(s =>
                   s.name.toLowerCase()
                   .includes(search.toLowerCase())
@@ -673,10 +628,10 @@ const [openingAmount, setOpeningAmount] = useState("");
                   {/* MAIN ROW */}
                   <div className="pro-inventory-row services-grid">
                     <span>{item.name}</span>
-                    <span>{item.qty}</span>
-                    <span>₹ {item.avgRate}</span>
+                    <span>{item.stockQty || 0}</span>
+                    <span>₹ {item.purchasePrice}</span>
                     <span>
-                      ₹ {item.closingBalance.toLocaleString()}
+                      ₹ {(item.purchasePrice * item.stockQty).toLocaleString()}
                     </span>
                     <button
                       className="pro-details-btn"
@@ -717,7 +672,7 @@ const [openingAmount, setOpeningAmount] = useState("");
                         <span>Status</span>
                       </div>
                       {/* ROWS */}
-                      {item.transactions.map((t)=>(
+                      {(item.transactions || []).map((t)=>(
                         <div
                           className="pro-details-row"
                           key={t.id}
@@ -1071,9 +1026,9 @@ const [openingAmount, setOpeningAmount] = useState("");
 
     <option>Select Category</option>
 
-    <option>Electronics</option>
-
-    <option>Accessories</option>
+    {categoryList.map((cat, i) => (
+      <option key={i} value={cat}>{cat}</option>
+    ))}
 
   </select>
 

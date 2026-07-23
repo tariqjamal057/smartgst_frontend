@@ -9,17 +9,7 @@ import {
   Users
 } from "lucide-react";
 import * as services from "../api/services";
-
-const fallbackCompanies = [
-  "A. K. STEELS",
-  "G. K. CONSTRUCTIONS",
-  "NATIONAL CASTING INDUSTRIES",
-  "MAYA FURNITURE & INTERIOR",
-  "TAXMATE TECHNOLOGY PRIVATE LIMITED",
-  "BEST COMPRESSOR MFG. VALVE CO.",
-  "UPDATE BOOKS",
-  "SHIKSHA SAGAR PUBLICATION"
-];
+import api from "../api/axios";
 
 export default function SelectCompany({ onClose, onSave }) {
 
@@ -40,6 +30,7 @@ export default function SelectCompany({ onClose, onSave }) {
   const [website, setWebsite] = useState("");
   const [contactPerson, setContactPerson] = useState("");
   const [contactNo, setContactNo] = useState("");
+  const [country, setCountry] = useState("India");
   const dropdownRef = useRef(null);
   
   // GST Details
@@ -55,34 +46,9 @@ export default function SelectCompany({ onClose, onSave }) {
   const [eInvoice, setEInvoice] = useState("No");
   const [ewbLoginId, setEwbLoginId] = useState("");
   const [ewbPassword, setEwbPassword] = useState("");
-
-  const handleSave = () => {
-    const companyData = {
-      companyName: newCompanyName,
-      gstin,
-      registeredAddress,
-      branchAddress,
-      state: selectedState,
-      country: "India",
-      email,
-      website,
-      contactPerson,
-      contactNo,
-      financialYear,
-      bookBeginning,
-      returnType,
-      registrationType,
-      useInventory,
-      ewayBill,
-      threshold,
-      eInvoice,
-      ewbLoginId,
-      ewbPassword,
-    };
-    
-    if (onSave) onSave(companyData);
-    if (onClose) onClose();
-  };
+  const [einvoiceLoginId, setEinvoiceLoginId] = useState("");
+  const [einvoicePassword, setEinvoicePassword] = useState("");
+  const [formErrors, setFormErrors] = useState({});
 
   const states = [
   "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar",
@@ -116,13 +82,9 @@ const avatarColors = [
   useEffect(() => {
     services.getCompanySettings({}).then(res => {
       const list = res.data?.results || res.data || [];
-      if (list.length > 0) {
-        setCompanies(list);
-      } else {
-        setCompanies(fallbackCompanies);
-      }
+      setCompanies(Array.isArray(list) ? list : []);
     }).catch(() => {
-      setCompanies(fallbackCompanies);
+      setCompanies([]);
     }).finally(() => setLoading(false));
   }, []);
 
@@ -154,34 +116,59 @@ const avatarColors = [
 
   const handleCreateCompany = async (e) => {
     e.preventDefault();
-    if (newCompanyName.trim()) {
-      try {
-        const res = await services.createCompanySetting({
-          company_name: newCompanyName.trim(),
-          gstin: gstin,
-          address: registeredAddress,
-          state: selectedState,
-          email: email,
-          phone: contactNo,
-          financial_year: financialYear,
-        });
-        const newCompany = res.data;
-        setCompanies(prev => [newCompany, ...prev]);
-      } catch {
-        // fallback: add string to list
-        setCompanies(prev => [newCompanyName.trim(), ...prev]);
-      }
+    setFormErrors({});
+    if (!newCompanyName.trim()) return;
+    try {
+      const res = await services.createCompanySetting({
+        company_name: newCompanyName.trim(),
+        gstin,
+        address: registeredAddress,
+        branch_address: branchAddress,
+        state: selectedState,
+        country,
+        email,
+        website: website && !website.startsWith("http") ? "https://" + website : website,
+        phone: contactNo,
+        contact_person: contactPerson,
+        financial_year: financialYear,
+        book_beginning: bookBeginning || null,
+        return_type: returnType,
+        registration_type: registrationType,
+        use_inventory: useInventory,
+        eway_bill: ewayBill,
+        eway_bill_threshold: threshold,
+        ewb_login_id: ewbLoginId,
+        ewb_password: ewbPassword,
+        e_invoice: eInvoice,
+        einvoice_login_id: einvoiceLoginId,
+        einvoice_password: einvoicePassword,
+      });
+      const newCompany = res.data;
+      setCompanies(prev => [newCompany, ...prev]);
       setNewCompanyName("");
       setIsCreating(false);
       setActiveTab("company");
       setShowStateList(false);
       setShowRegType(false);
       if (onClose) onClose();
+    } catch (err) {
+      const data = err.response?.data || {};
+      if (typeof data === "object" && !data.detail) {
+        const fieldErrors = {};
+        Object.entries(data).forEach(([field, msgs]) => {
+          fieldErrors[field] = Array.isArray(msgs) ? msgs.join(". ") : msgs;
+        });
+        setFormErrors(fieldErrors);
+        const firstMsg = Object.values(fieldErrors).find(Boolean);
+        if (firstMsg) alert(firstMsg);
+      } else {
+        alert("Failed to create company: " + (data.detail || err.message));
+      }
     }
   };
 
   const filtered = companies.filter(c => {
-    const name = typeof c === "string" ? c : (c.company_name || "");
+    const name = c.company_name || "";
     return name.toLowerCase().includes(search.toLowerCase());
   });
   useEffect(() => {
@@ -208,29 +195,25 @@ const handleGetGST = async () => {
   }
 
   try {
-    const res = await fetch("http://localhost:5000/get-gst", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ gstin }),
-    });
-
-    const data = await res.json();
+    const res = await api.get(`/accounting/gst/${gstin}/`);
+    const data = res.data;
 
     if (data.success) {
-      // ✅ Auto fill fields
-      setNewCompanyName(data.companyName);
-      setRegisteredAddress(data.address);
-      setSelectedState(data.state);
+      setNewCompanyName(data.company_name || "");
+      setRegisteredAddress(data.address || "");
+      setBranchAddress(data.branch_address || "");
+      setSelectedState(data.state || "");
       setEmail(data.email || "");
+      setWebsite(data.website || "");
+      setContactPerson(data.contact_person || "");
+      setContactNo(data.contact_no || "");
     } else {
       alert("GST not found");
     }
 
   } catch (error) {
     console.error(error);
-    alert("Server error");
+    alert("GST lookup failed: " + (error.response?.data?.detail || error.message));
   }
 };
   
@@ -379,7 +362,7 @@ const handleGetGST = async () => {
         </div>
 
         <div>
-          <h2>18</h2>
+          <h2>{companies.filter(c => c.is_active !== false).length}</h2>
           <p>Active Companies</p>
         </div>
 
@@ -394,7 +377,7 @@ const handleGetGST = async () => {
         </div>
 
         <div>
-          <h2>4</h2>
+          <h2>{companies.filter(c => c.is_active === false).length}</h2>
           <p>Inactive Companies</p>
         </div>
 
@@ -409,7 +392,7 @@ const handleGetGST = async () => {
         </div>
 
         <div>
-          <h2>12</h2>
+          <h2>&mdash;</h2>
           <p>Users</p>
         </div>
 
@@ -508,8 +491,8 @@ const handleGetGST = async () => {
       {/* TABLE BODY */}
 
       {filtered.map((company, i) => {
-        const companyName = typeof company === "string" ? company : (company.company_name || "Unknown");
-        const companyId = typeof company === "string" ? `C00${i + 1}` : (company.uuid || `C00${i + 1}`);
+        const companyName = company.company_name || "Unknown";
+        const companyId = company.company_id || company.uuid || `C00${i + 1}`;
         return (
         <div
           key={i}
@@ -543,21 +526,21 @@ const handleGetGST = async () => {
           {/* TYPE */}
 
           <div>
-            Private Limited
+            {company.registration_type || "—"}
           </div>
 
           {/* DATE */}
 
           <div>
-            12 May 2025
+            {company.created_at ? new Date(company.created_at).toLocaleDateString("en-IN") : "—"}
           </div>
 
           {/* STATUS */}
 
           <div>
 
-            <span className="status-badge active">
-              ● Active
+            <span className={`status-badge ${company.is_active !== false ? "active" : "inactive"}`}>
+              ● {company.is_active !== false ? "Active" : "Inactive"}
             </span>
 
           </div>
@@ -565,7 +548,7 @@ const handleGetGST = async () => {
           {/* LAST ACCESSED */}
 
           <div>
-            Today, 10:30 AM
+            {company.updated_at ? new Date(company.updated_at).toLocaleDateString("en-IN") : "0"}
           </div>
 
           {/* ACTION */}
@@ -957,12 +940,12 @@ const handleGetGST = async () => {
                       <>
                         <div className="popup-field">
                           <label>Invoice Login ID</label>
-                          <input placeholder="Invoice Username" />
+                          <input placeholder="Invoice Username" value={einvoiceLoginId} onChange={(e) => setEinvoiceLoginId(e.target.value)} />
                         </div>
 
                         <div className="popup-field">
                           <label>Invoice Password</label>
-                          <input type="password" placeholder="••••••" />
+                          <input type="password" placeholder="••••••" value={einvoicePassword} onChange={(e) => setEinvoicePassword(e.target.value)} />
                         </div>
                       </>
                     )}
@@ -971,7 +954,7 @@ const handleGetGST = async () => {
 
                 {/* FOOTER */}
                 <div className="popup-footer">
-                  <button onClick={handleSave} className="save-btn">Save Company</button>
+                  <button onClick={handleCreateCompany} className="save-btn">Save Company</button>
                 </div>
               </div>
             </div>

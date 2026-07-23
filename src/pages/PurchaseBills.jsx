@@ -5,49 +5,12 @@ import "@fortawesome/fontawesome-free/css/all.min.css";
 import { loadData, saveData, deleteData } from "../api/connector";
 import * as services from "../api/services";
 
-/* ================= FIRMS ================= */
-
-const firmsList = [
-  "Firm A",
-  "Firm B",
-  "Firm C",
-  "Firm D",
-  "Firm E"
-];
-
-/* ================= DEFAULT DATA ================= */
-
-const generateData = () => {
-  const parties = [
-    "Mohan Traders","Ravi Enterprises","Sharma & Co","Gupta Suppliers",
-    "Verma Traders","A1 Wholesale","Modern Store","Global Imports",
-    "Raj Brothers","Om Suppliers","City Traders","Krishna Mart",
-    "Star Wholesale","Sunrise Traders","Prime Supplies","Royal Enterprises",
-    "Nikhil Stores","Elite Traders","Metro Wholesale","National Suppliers"
-  ];
-
-  return parties.map((name, i) => {
-    const amount = Math.floor(Math.random() * 8000) + 1000;
-    const credit = i % 2 === 0;
-
-    return {
-      id: i + 1,
-      date: `2026-${String((i % 12) + 1).padStart(2, "0")}-15`,
-      invoice: `PB-${String(i + 1).padStart(3, "0")}`,
-      party: name,
-      firm: firmsList[i % firmsList.length],
-      payment: credit ? "Credit" : "Cash",
-      amount,
-      balance: credit ? amount : 0
-    };
-  });
-};
-
 export default function PurchaseBills() {
   const { collapsed } = useOutletContext();
   const fileRef = useRef();
 
-  const [data, setData] = useState(generateData());
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [period, setPeriod] = useState("All Purchase Invoice");
   const [firm, setFirm] = useState("All Firms");
@@ -55,6 +18,66 @@ export default function PurchaseBills() {
   const [toDate, setToDate] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchAll = async () => {
+      setLoading(true);
+      try {
+        const [billsRes, partiesRes, settingsRes] = await Promise.all([
+          services.getPurchaseBills({}),
+          services.getParties({}),
+          services.getCompanySettings({}),
+        ]);
+
+        if (cancelled) return;
+
+        const billsList = Array.isArray(billsRes.data)
+          ? billsRes.data
+          : billsRes.data?.results ?? [];
+
+        const partiesList = Array.isArray(partiesRes.data)
+          ? partiesRes.data
+          : partiesRes.data?.results ?? [];
+
+        const settingsList = Array.isArray(settingsRes.data)
+          ? settingsRes.data
+          : settingsRes.data?.results ?? [];
+
+        const partyMap = {};
+        partiesList.forEach((p) => {
+          partyMap[p.id] = p.name;
+        });
+
+        const companyName =
+          settingsList[0]?.company_name || "Default";
+
+        setData(
+          billsList.map((b) => ({
+            id: b.id,
+            date: b.bill_date || b.date,
+            invoice: b.bill_id || b.voucher_number,
+            party: partyMap[b.party] || `Party #${b.party}`,
+            firm: companyName,
+            payment: Number(b.balance) > 0 ? "Credit" : "Cash",
+            amount: Number(b.total_amount),
+            balance: Number(b.balance),
+          }))
+        );
+      } catch (err) {
+        console.error("Failed to load purchase bills:", err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    fetchAll();
+    return () => { cancelled = true; };
+  }, []);
+
+  const firmsList = useMemo(() => {
+    const names = data.map((d) => d.firm).filter(Boolean);
+    return [...new Set(names)];
+  }, [data]);
 
   const rowsPerPage = 5;
 
@@ -272,7 +295,13 @@ export default function PurchaseBills() {
             </tr>
           </thead>
           <tbody>
-            {paginatedData.length > 0 ? (
+            {loading ? (
+              <tr>
+                <td colSpan="7" className="no-data">
+                  Loading...
+                </td>
+              </tr>
+            ) : paginatedData.length > 0 ? (
               paginatedData.map((item) => (
                 <tr key={item.id}>
                   <td>{item.date}</td>

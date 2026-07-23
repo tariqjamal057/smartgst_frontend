@@ -1,31 +1,54 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useOutletContext } from "react-router-dom";
 import "../styles/TDSReport.css";
+import * as services from "../api/services";
 
 const TDSReport = () => {
   const [mode, setMode] = useState("month");
   const [month, setMonth] = useState("");
   const [quarter, setQuarter] = useState("");
   const [type, setType] = useState("tds");
-
   const { collapsed } = useOutletContext();
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const data = [
-    {
-      section: "194C",
-      account: "ABC Pvt Ltd",
-      pan: "ABCDE1234F",
-      date: "2026-04-10",
-      rate: "1%",
-      amount: 10000,
-      tax: 100,
-    },
-  ];
+  const fetchData = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      let from_date = "";
+      let to_date = "";
+      if (mode === "month" && month) {
+        const [y, m] = month.split("-");
+        from_date = `${y}-${m}-01`;
+        const lastDay = new Date(y, m, 0).getDate();
+        to_date = `${y}-${m}-${String(lastDay).padStart(2, "0")}`;
+      } else if (mode === "quarter" && quarter) {
+        const qMap = { Q1: ["04", "06"], Q2: ["07", "09"], Q3: ["10", "12"], Q4: ["01", "03"] };
+        const [startM, endM] = qMap[quarter] || [];
+        const fy = new Date().getFullYear();
+        from_date = `${fy}-${startM}-01`;
+        const lastDay = new Date(fy, parseInt(endM), 0).getDate();
+        to_date = `${fy}-${endM}-${String(lastDay).padStart(2, "0")}`;
+      }
+      const res = await services.getTDSReport({ from_date, to_date });
+      const payload = res.data || res;
+      setData(Array.isArray(payload) ? payload : payload.results || []);
+    } catch (err) {
+      setError("Failed to fetch TDS data.");
+      setData([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [month, quarter, mode]);
 
   return (
     <div className={`main ${collapsed ? "collapsed" : ""}`}>
-
-      {/* 🔥 HEADER CARD */}
       <div className="tds-header-card">
         <div className="tds-header-left">
           <div className="tds-icon">📄</div>
@@ -36,48 +59,19 @@ const TDSReport = () => {
         </div>
       </div>
 
-      {/* FILTER CARD */}
       <div className="tds-filter-card">
-
-        {/* LEFT */}
         <div className="tds-left">
-
-          {/* TOGGLE */}
           <div className="tds-switch-row">
-
-            <span className={mode === "month" ? "label active" : "label"}>
-              Month
-            </span>
-
-            <div
-              className={`tds-switch ${mode === "quarter" ? "right" : ""}`}
-              onClick={() =>
-                setMode((prev) => (prev === "month" ? "quarter" : "month"))
-              }
-            >
+            <span className={mode === "month" ? "label active" : "label"}>Month</span>
+            <div className={`tds-switch ${mode === "quarter" ? "right" : ""}`} onClick={() => setMode((prev) => (prev === "month" ? "quarter" : "month"))}>
               <div className="tds-switch-thumb"></div>
             </div>
-
-            <span className={mode === "quarter" ? "label active" : "label"}>
-              Quarter
-            </span>
-
+            <span className={mode === "quarter" ? "label active" : "label"}>Quarter</span>
           </div>
-
-          {/* INPUT */}
           {mode === "month" ? (
-            <input
-              type="month"
-              className="tds-input"
-              value={month}
-              onChange={(e) => setMonth(e.target.value)}
-            />
+            <input type="month" className="tds-input" value={month} onChange={(e) => setMonth(e.target.value)} />
           ) : (
-            <select
-              className="tds-input"
-              value={quarter}
-              onChange={(e) => setQuarter(e.target.value)}
-            >
+            <select className="tds-input" value={quarter} onChange={(e) => setQuarter(e.target.value)}>
               <option value="">Select Quarter</option>
               <option value="Q1">Q1 (Apr - Jun)</option>
               <option value="Q2">Q2 (Jul - Sep)</option>
@@ -85,25 +79,19 @@ const TDSReport = () => {
               <option value="Q4">Q4 (Jan - Mar)</option>
             </select>
           )}
-
         </div>
-
-        {/* RIGHT */}
         <div className="tds-right">
           <label>Type</label>
-          <select
-            className="tds-input"
-            value={type}
-            onChange={(e) => setType(e.target.value)}
-          >
+          <select className="tds-input" value={type} onChange={(e) => setType(e.target.value)}>
             <option value="tds">TDS Report</option>
             <option value="tcs">TCS Report</option>
           </select>
         </div>
-
       </div>
 
-      {/* TABLE */}
+      {error && <p style={{ color: "red", margin: "10px 0" }}>{error}</p>}
+      {loading && <p style={{ color: "#888", margin: "10px 0" }}>Loading...</p>}
+
       <div className="tds-table-card">
         <table>
           <thead>
@@ -117,23 +105,25 @@ const TDSReport = () => {
               <th>Tax</th>
             </tr>
           </thead>
-
           <tbody>
-            {data.map((row, i) => (
-              <tr key={i}>
-                <td>{row.section}</td>
-                <td>{row.account}</td>
-                <td>{row.pan}</td>
-                <td>{row.date}</td>
-                <td>{row.rate}</td>
-                <td>₹ {row.amount}</td>
-                <td>₹ {row.tax}</td>
-              </tr>
-            ))}
+            {data.length === 0 && !loading ? (
+              <tr><td colSpan={7} style={{ textAlign: "center", color: "#888" }}>No data available for the selected period.</td></tr>
+            ) : (
+              data.map((row, i) => (
+                <tr key={i}>
+                  <td>{row.section}</td>
+                  <td>{row.account}</td>
+                  <td>{row.pan}</td>
+                  <td>{row.date}</td>
+                  <td>{row.rate}</td>
+                  <td>₹ {row.amount}</td>
+                  <td>₹ {row.tax}</td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
-
     </div>
   );
 };

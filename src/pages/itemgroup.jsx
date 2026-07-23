@@ -2,146 +2,74 @@ import { useEffect, useState } from "react";
 import "../styles/InventoryMaster.css";
 import { useOutletContext } from "react-router-dom";
 import { Package2 } from "lucide-react";
+import * as services from "../api/services";
 
 const InventoryMaster = () => {
 
-  /* =========================================
-      MASTER STATES
-  ========================================= */
+  const [units, setUnits] = useState(["PCS", "KGS", "BTL"]);
+  const [categories, setCategories] = useState([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const [godowns, setGodowns] = useState(["Main Warehouse"]);
 
-  const [units, setUnits] = useState([
-    "PCS",
-    "KGS",
-    "BTL"
-  ]);
-
-  const [categories, setCategories] = useState([
-    "Electronics",
-    "Food"
-  ]);
-
-  const [godowns, setGodowns] = useState([
-    "Main Warehouse"
-  ]);
-
-  /* =========================================
-      TOP FORM STATES
-  ========================================= */
-
-  const [unitForm, setUnitForm] = useState({
-    symbol: "",
-    code: "",
-    decimal: ""
-  });
+  const [unitForm, setUnitForm] = useState({ symbol: "", code: "", decimal: "" });
   const { collapsed } = useOutletContext();
-
-  const [categoryForm, setCategoryForm] = useState({
-    name: "",
-    description: ""
-  });
-
-  const [godownForm, setGodownForm] = useState({
-    name: "",
-    description: "",
-    address: ""
-  });
-
-  /* =========================================
-      STOCK ITEM FORM
-  ========================================= */
+  const [categoryForm, setCategoryForm] = useState({ name: "", description: "" });
+  const [godownForm, setGodownForm] = useState({ name: "", description: "", address: "" });
 
   const [itemForm, setItemForm] = useState({
-    name: "",
-    description: "",
-
-    unit: "",
-    category: "",
-    godown: "",
-
-    gstApplicable: true,
-
-    hsn: "",
-    gstDescription: "",
-    taxability: "Taxable",
-    gstRate: "",
-
-    supplyType: "Goods",
-
-    qty: "",
-    rate: "",
-    amount: ""
+    name: "", description: "", unit: "", category: "", godown: "",
+    gstApplicable: true, hsn: "", gstDescription: "", taxability: "Taxable",
+    gstRate: "", supplyType: "Goods", qty: "", rate: "", amount: ""
   });
 
-  /* =========================================
-      AUTO AMOUNT
-  ========================================= */
-
-  useEffect(() => {
-
-    const qty = Number(itemForm.qty || 0);
-    const rate = Number(itemForm.rate || 0);
-
-    setItemForm((prev) => ({
-      ...prev,
-      amount: qty * rate
-    }));
-
-  }, [itemForm.qty, itemForm.rate]);
-
-  /* =========================================
-      SAVE FUNCTIONS
-  ========================================= */
-
-  const saveUnit = () => {
-
-    if (!unitForm.symbol) return;
-
-    setUnits((prev) => [
-      ...prev,
-      unitForm.symbol
-    ]);
-
-    setUnitForm({
-      symbol: "",
-      code: "",
-      decimal: ""
-    });
+  const fetchCategories = async () => {
+    setCategoriesLoading(true);
+    try {
+      const res = await services.getItemCategories();
+      const data = res.data.results || res.data || [];
+      setCategories(data);
+    } catch {
+      setCategories([]);
+    } finally {
+      setCategoriesLoading(false);
+    }
   };
 
-  const saveCategory = () => {
+  useEffect(() => {
+    fetchCategories();
+  }, []);
 
+  useEffect(() => {
+    const qty = Number(itemForm.qty || 0);
+    const rate = Number(itemForm.rate || 0);
+    setItemForm((prev) => ({ ...prev, amount: qty * rate }));
+  }, [itemForm.qty, itemForm.rate]);
+
+  const saveUnit = () => {
+    if (!unitForm.symbol) return;
+    setUnits((prev) => [...prev, unitForm.symbol]);
+    setUnitForm({ symbol: "", code: "", decimal: "" });
+  };
+
+  const saveCategory = async () => {
     if (!categoryForm.name) return;
-
-    setCategories((prev) => [
-      ...prev,
-      categoryForm.name
-    ]);
-
-    setCategoryForm({
-      name: "",
-      description: ""
-    });
+    try {
+      await services.createItemCategory({
+        name: categoryForm.name,
+        description: categoryForm.description
+      });
+      setCategoryForm({ name: "", description: "" });
+      fetchCategories();
+    } catch {
+      // keep form as is on error
+    }
   };
 
   const saveGodown = () => {
-
     if (!godownForm.name) return;
-
-    setGodowns((prev) => [
-      ...prev,
-      godownForm.name
-    ]);
-
-    setGodownForm({
-      name: "",
-      description: "",
-      address: ""
-    });
+    setGodowns((prev) => [...prev, godownForm.name]);
+    setGodownForm({ name: "", description: "", address: "" });
   };
-
-  /* =========================================
-      SAVE ITEM
-  ========================================= */
 
   const saveItem = () => {
     console.log(itemForm);
@@ -150,10 +78,6 @@ const InventoryMaster = () => {
   return (
     <div className={`main ${collapsed ? "collapsed" : ""}`}>
         <div className="inventory-page">
-            {/* =====================================
-                    PAGE HEADER
-                ===================================== */}
-
             <div className="inventory-header">
                 <div className="inventory-header-left">
                     <div className="inventory-header-icon">
@@ -173,9 +97,6 @@ const InventoryMaster = () => {
                     </div>
                 </div>
             </div>
-        {/* =====================================
-            TOP MASTER CARDS
-        ===================================== */}
         <div className="inventory-top-grid">
             {/* UNIT */}
             <div className="inventory-card">
@@ -187,10 +108,7 @@ const InventoryMaster = () => {
                     <input
                     value={unitForm.symbol}
                     onChange={(e) =>
-                        setUnitForm({
-                        ...unitForm,
-                        symbol: e.target.value
-                        })
+                        setUnitForm({ ...unitForm, symbol: e.target.value })
                     }
                     placeholder="PCS"
                     />
@@ -200,10 +118,7 @@ const InventoryMaster = () => {
                     <select
                     value={unitForm.code}
                     onChange={(e) =>
-                        setUnitForm({
-                        ...unitForm,
-                        code: e.target.value
-                        })
+                        setUnitForm({ ...unitForm, code: e.target.value })
                     }
                     >
                     <option value="">Select</option>
@@ -217,19 +132,13 @@ const InventoryMaster = () => {
                     <input
                     value={unitForm.decimal}
                     onChange={(e) =>
-                        setUnitForm({
-                        ...unitForm,
-                        decimal: e.target.value
-                        })
+                        setUnitForm({ ...unitForm, decimal: e.target.value })
                     }
                     placeholder="2"
                     />
                 </div>
                 <div className="inventory-actions">
-                    <button
-                    className="unit-inventory-save-btn"
-                    onClick={saveUnit}
-                    >
+                    <button className="unit-inventory-save-btn" onClick={saveUnit}>
                     Save
                     </button>
                 </div>
@@ -244,10 +153,7 @@ const InventoryMaster = () => {
                     <input
                     value={categoryForm.name}
                     onChange={(e) =>
-                        setCategoryForm({
-                        ...categoryForm,
-                        name: e.target.value
-                        })
+                        setCategoryForm({ ...categoryForm, name: e.target.value })
                     }
                     placeholder="Electronics"
                     />
@@ -258,21 +164,26 @@ const InventoryMaster = () => {
                     rows="3"
                     value={categoryForm.description}
                     onChange={(e) =>
-                        setCategoryForm({
-                        ...categoryForm,
-                        description: e.target.value
-                        })
+                        setCategoryForm({ ...categoryForm, description: e.target.value })
                     }
                     />
                 </div>
                 <div className="inventory-actions">
-                    <button
-                    className="stock-inventory-save-btn"
-                    onClick={saveCategory}
-                    >
+                    <button className="stock-inventory-save-btn" onClick={saveCategory}>
                     Save
                     </button>
                 </div>
+                {categories.length > 0 && (
+                    <div style={{ marginTop: 10, borderTop: "1px solid #eee", paddingTop: 10 }}>
+                        <label style={{ fontWeight: 600, fontSize: 12, color: "#666" }}>Existing Categories</label>
+                        <ul style={{ margin: "6px 0 0", padding: "0 0 0 16px", fontSize: 13 }}>
+                            {categories.map((c) => (
+                                <li key={c.id}>{c.name}</li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+                {categoriesLoading && <div style={{ fontSize: 12, color: "#888", marginTop: 6 }}>Loading...</div>}
             </div>
             {/* GODOWN */}
             <div className="inventory-card">
@@ -284,10 +195,7 @@ const InventoryMaster = () => {
                     <input
                     value={godownForm.name}
                     onChange={(e) =>
-                        setGodownForm({
-                        ...godownForm,
-                        name: e.target.value
-                        })
+                        setGodownForm({ ...godownForm, name: e.target.value })
                     }
                     placeholder="Main Warehouse"
                     />
@@ -297,10 +205,7 @@ const InventoryMaster = () => {
                     <input
                     value={godownForm.description}
                     onChange={(e) =>
-                        setGodownForm({
-                        ...godownForm,
-                        description: e.target.value
-                        })
+                        setGodownForm({ ...godownForm, description: e.target.value })
                     }
                     />
                 </div>
@@ -310,42 +215,29 @@ const InventoryMaster = () => {
                     rows="2"
                     value={godownForm.address}
                     onChange={(e) =>
-                        setGodownForm({
-                        ...godownForm,
-                        address: e.target.value
-                        })
+                        setGodownForm({ ...godownForm, address: e.target.value })
                     }
                     />
                 </div>
                 <div className="inventory-actions">
-                    <button
-                    className="inventory-save-btn"
-                    onClick={saveGodown}
-                    >
+                    <button className="inventory-save-btn" onClick={saveGodown}>
                     Save
                     </button>
                 </div>
             </div>
         </div>
-        {/* ====================================
-            STOCK ITEM
-        ===================================== */}
         <div className="inventory-item-card">
             <div className="inventory-main-title">
             Stock Item
             </div>
             <div className="inventory-item-grid">
-            {/* LEFT */}
             <div className="inventory-item-section">
                 <div className="inventory-form-group">
                 <label>Name</label>
                 <input
                     value={itemForm.name}
                     onChange={(e) =>
-                    setItemForm({
-                        ...itemForm,
-                        name: e.target.value
-                    })
+                    setItemForm({ ...itemForm, name: e.target.value })
                     }
                 />
                 </div>
@@ -354,19 +246,12 @@ const InventoryMaster = () => {
                     <select
                         value={itemForm.unit}
                         onChange={(e) =>
-                        setItemForm({
-                            ...itemForm,
-                            unit: e.target.value
-                        })
+                        setItemForm({ ...itemForm, unit: e.target.value })
                         }
                     >
-                        <option value="">
-                        Select Unit
-                        </option>
+                        <option value="">Select Unit</option>
                         {units.map((u, i) => (
-                        <option key={i}>
-                            {u}
-                        </option>
+                        <option key={i}>{u}</option>
                         ))}
                     </select>
                 </div>
@@ -376,32 +261,21 @@ const InventoryMaster = () => {
                         rows="3"
                         value={itemForm.description}
                         onChange={(e) =>
-                        setItemForm({
-                            ...itemForm,
-                            description: e.target.value
-                        })
+                        setItemForm({ ...itemForm, description: e.target.value })
                         }
                     />
                 </div>
-                
                 <div className="inventory-form-group">
                 <label>Category</label>
                 <select
                     value={itemForm.category}
                     onChange={(e) =>
-                    setItemForm({
-                        ...itemForm,
-                        category: e.target.value
-                    })
+                    setItemForm({ ...itemForm, category: e.target.value })
                     }
                 >
-                    <option value="">
-                    Select Category
-                    </option>
-                    {categories.map((c, i) => (
-                    <option key={i}>
-                        {c}
-                    </option>
+                    <option value="">Select Category</option>
+                    {categories.map((c) => (
+                    <option key={c.id} value={c.name}>{c.name}</option>
                     ))}
                 </select>
                 </div>
@@ -410,24 +284,16 @@ const InventoryMaster = () => {
                 <select
                     value={itemForm.godown}
                     onChange={(e) =>
-                    setItemForm({
-                        ...itemForm,
-                        godown: e.target.value
-                    })
+                    setItemForm({ ...itemForm, godown: e.target.value })
                     }
                 >
-                    <option value="">
-                    Select Godown
-                    </option>
+                    <option value="">Select Godown</option>
                     {godowns.map((g, i) => (
-                    <option key={i}>
-                        {g}
-                    </option>
+                    <option key={i}>{g}</option>
                     ))}
                 </select>
                 </div>
             </div>
-            {/* RIGHT */}
             <div className="inventory-item-section">
                 <div className="inventory-radio">
                 <label>GST Applicable</label>
@@ -437,10 +303,7 @@ const InventoryMaster = () => {
                         type="radio"
                         checked={itemForm.gstApplicable}
                         onChange={() =>
-                        setItemForm({
-                            ...itemForm,
-                            gstApplicable: true
-                        })
+                        setItemForm({ ...itemForm, gstApplicable: true })
                         }
                     />
                     Yes
@@ -450,10 +313,7 @@ const InventoryMaster = () => {
                         type="radio"
                         checked={!itemForm.gstApplicable}
                         onChange={() =>
-                        setItemForm({
-                            ...itemForm,
-                            gstApplicable: false
-                        })
+                        setItemForm({ ...itemForm, gstApplicable: false })
                         }
                     />
                     No
@@ -467,10 +327,7 @@ const InventoryMaster = () => {
                     <input
                         value={itemForm.hsn}
                         onChange={(e) =>
-                        setItemForm({
-                            ...itemForm,
-                            hsn: e.target.value
-                        })
+                        setItemForm({ ...itemForm, hsn: e.target.value })
                         }
                     />
                     </div>
@@ -479,11 +336,7 @@ const InventoryMaster = () => {
                     <input
                         value={itemForm.gstDescription}
                         onChange={(e) =>
-                        setItemForm({
-                            ...itemForm,
-                            gstDescription:
-                            e.target.value
-                        })
+                        setItemForm({ ...itemForm, gstDescription: e.target.value })
                         }
                     />
                     </div>
@@ -492,11 +345,7 @@ const InventoryMaster = () => {
                     <select
                         value={itemForm.taxability}
                         onChange={(e) =>
-                        setItemForm({
-                            ...itemForm,
-                            taxability:
-                            e.target.value
-                        })
+                        setItemForm({ ...itemForm, taxability: e.target.value })
                         }
                     >
                         <option>Taxable</option>
@@ -510,11 +359,7 @@ const InventoryMaster = () => {
                     <input
                         value={itemForm.gstRate}
                         onChange={(e) =>
-                        setItemForm({
-                            ...itemForm,
-                            gstRate:
-                            e.target.value
-                        })
+                        setItemForm({ ...itemForm, gstRate: e.target.value })
                         }
                         placeholder="18%"
                     />
@@ -524,11 +369,7 @@ const InventoryMaster = () => {
                     <select
                         value={itemForm.supplyType}
                         onChange={(e) =>
-                        setItemForm({
-                            ...itemForm,
-                            supplyType:
-                            e.target.value
-                        })
+                        setItemForm({ ...itemForm, supplyType: e.target.value })
                         }
                     >
                         <option>Goods</option>
@@ -540,7 +381,6 @@ const InventoryMaster = () => {
                 )}
             </div>
             </div>
-            {/* OPENING BALANCE */}
             <div className="inventory-opening">
             <div className="inventory-opening-title">
                 Opening Balance
@@ -551,10 +391,7 @@ const InventoryMaster = () => {
                 <input
                     value={itemForm.qty}
                     onChange={(e) =>
-                    setItemForm({
-                        ...itemForm,
-                        qty: e.target.value
-                    })
+                    setItemForm({ ...itemForm, qty: e.target.value })
                     }
                 />
                 </div>
@@ -563,27 +400,18 @@ const InventoryMaster = () => {
                 <input
                     value={itemForm.rate}
                     onChange={(e) =>
-                    setItemForm({
-                        ...itemForm,
-                        rate: e.target.value
-                    })
+                    setItemForm({ ...itemForm, rate: e.target.value })
                     }
                 />
                 </div>
                 <div className="inventory-form-group">
                 <label>Amount</label>
-                <input
-                    value={itemForm.amount}
-                    readOnly
-                />
+                <input value={itemForm.amount} readOnly />
                 </div>
             </div>
             </div>
             <div className="inventory-actions">
-            <button
-                className="inventory-save-btn"
-                onClick={saveItem}
-            >
+            <button className="inventory-save-btn" onClick={saveItem}>
                 Save Item
             </button>
             </div>

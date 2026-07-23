@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Calendar, FileText, Download } from "lucide-react";
 import { useOutletContext } from "react-router-dom";
+import * as services from "../api/services";
 import "../styles/DayBook.css";
 
 const DayBook = () => {
@@ -11,52 +12,61 @@ const DayBook = () => {
 
   const [data, setData] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
-    const rowsPerPage = 10;
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const rowsPerPage = 10;
 
-  // 🔥 TEMP DATA (replace with API later)
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const params = { from_date: fromDate, to_date: toDate };
+      if (voucherType !== "all") params.voucher_type = voucherType;
+
+      const res = await services.getTransactions(params);
+      const results = res.data.results || res.data || [];
+      const transactions = Array.isArray(results) ? results : [];
+
+      const formatted = transactions.map((t) => ({
+        date: t.date || t.transaction_date || "",
+        ledger: t.ledger_name || t.party || t.particulars || "",
+        type: t.voucher_type || t.type || "",
+        voucherNo: t.voucher_no || "",
+        invoice: t.invoice_no || t.invoice || "",
+        dr: t.debit || t.dr || t.amount_dr || "",
+        cr: t.credit || t.cr || t.amount_cr || "",
+      }));
+
+      setData(formatted);
+    } catch (err) {
+      console.error("Failed to fetch daybook transactions:", err);
+      setError("Failed to load daybook data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    setData([
-      {
-        date: "30-Nov-25",
-        ledger: "Rahul Traders",
-        type: "Purchase",
-        voucherNo: "1",
-        invoice: "GST00150",
-        dr: "",
-        cr: 236000,
-      },
-      {
-        date: "31-Dec-25",
-        ledger: "Bismi Enterprises",
-        type: "Sale",
-        voucherNo: "TXP/2025-25/001",
-        invoice: "TXP/2025-25/001",
-        dr: 118000,
-        cr: "",
-      },
-      {
-        date: "01-Jan-26",
-        ledger: "Modi Pvt Ltd",
-        type: "Purchase",
-        voucherNo: "2",
-        invoice: "TSF 2025-315",
-        dr: "",
-        cr: 118000,
-      },
-    ]);
+    fetchData();
   }, []);
 
-  // 🔹 FILTER LOGIC
+  const handleFilter = () => {
+    setCurrentPage(1);
+    fetchData();
+  };
+
+  // FILTER LOGIC (client-side for voucher type, API for dates)
   const filteredData =
     voucherType === "all"
       ? data
       : data.filter((d) => d.type.toLowerCase() === voucherType);
-      const totalPages = Math.ceil(filteredData.length / rowsPerPage);
 
-    const paginatedData = filteredData.slice(
+  const totalPages = Math.ceil(filteredData.length / rowsPerPage);
+
+  const paginatedData = filteredData.slice(
     (currentPage - 1) * rowsPerPage,
     currentPage * rowsPerPage
-    );
+  );
 
   return (
     <div className={`main ${collapsed ? "collapsed" : ""}`}>
@@ -119,67 +129,86 @@ const DayBook = () => {
                 </div>
                 </div>
 
+                {/* APPLY */}
+                <div className="db-field">
+                <button className="db-apply-btn" onClick={handleFilter}>Apply</button>
+                </div>
+
                 {/* CONFIG */}
                 <div className="db-field">
                 <label>Configuration</label>
-                <button className="db-config">⚙️</button>
+                <button className="db-config">Configuration</button>
                 </div>
 
             </div>
 
+            {/* LOADING */}
+            {loading && <div style={{ textAlign: "center", padding: "40px" }}>Loading daybook data...</div>}
+            {error && <div style={{ textAlign: "center", padding: "20px", color: "red" }}>{error}</div>}
+
             {/* TABLE */}
-            <div className="db-table-wrapper">
-                <table className="db-table">
+            {!loading && !error && (
+                <>
+                <div className="db-table-wrapper">
+                    <table className="db-table">
 
-                <thead>
-                    <tr>
-                    <th>Date</th>
-                    <th>Ledger Name</th>
-                    <th>Voucher Type</th>
-                    <th>Voucher No.</th>
-                    <th>Invoice No.</th>
-                    <th>Amount Dr.</th>
-                    <th>Amount Cr.</th>
-                    </tr>
-                </thead>
+                    <thead>
+                        <tr>
+                        <th>Date</th>
+                        <th>Ledger Name</th>
+                        <th>Voucher Type</th>
+                        <th>Voucher No.</th>
+                        <th>Invoice No.</th>
+                        <th>Amount Dr.</th>
+                        <th>Amount Cr.</th>
+                        </tr>
+                    </thead>
 
-                <tbody>
-                    {paginatedData.map((row, i) => (
-                    <tr key={i}>
-                        <td>{row.date}</td>
-                        <td>{row.ledger}</td>
-                        <td>{row.type}</td>
-                        <td>{row.voucherNo}</td>
-                        <td>{row.invoice}</td>
-                        <td className="dr">{row.dr}</td>
-                        <td className="cr">{row.cr}</td>
-                    </tr>
-                    ))}
-                </tbody>
+                    <tbody>
+                        {paginatedData.length === 0 ? (
+                        <tr>
+                            <td colSpan="7" style={{ textAlign: "center", padding: "20px" }}>
+                            No entries found
+                            </td>
+                        </tr>
+                        ) : (
+                        paginatedData.map((row, i) => (
+                        <tr key={i}>
+                            <td>{row.date}</td>
+                            <td>{row.ledger}</td>
+                            <td>{row.type}</td>
+                            <td>{row.voucherNo}</td>
+                            <td>{row.invoice}</td>
+                            <td className="dr">{row.dr || ""}</td>
+                            <td className="cr">{row.cr || ""}</td>
+                        </tr>
+                        ))
+                        )}
+                    </tbody>
 
-                </table>
-            </div>
-            <div className="db-pagination">
+                    </table>
+                </div>
+                <div className="db-pagination">
+                    <button
+                        disabled={currentPage === 1}
+                        onClick={() => setCurrentPage(currentPage - 1)}
+                    >
+                        Prev
+                    </button>
 
-                <button
-                    disabled={currentPage === 1}
-                    onClick={() => setCurrentPage(currentPage - 1)}
-                >
-                    ⬅ Prev
-                </button>
+                    <span>
+                        Page {currentPage} of {totalPages || 1}
+                    </span>
 
-                <span>
-                    Page {currentPage} of {totalPages}
-                </span>
-
-                <button
-                    disabled={currentPage === totalPages}
-                    onClick={() => setCurrentPage(currentPage + 1)}
-                >
-                    Next ➡
-                </button>
-
-            </div>
+                    <button
+                        disabled={currentPage === totalPages || totalPages === 0}
+                        onClick={() => setCurrentPage(currentPage + 1)}
+                    >
+                        Next
+                    </button>
+                </div>
+                </>
+            )}
 
         </div>
     </div>

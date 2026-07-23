@@ -584,6 +584,10 @@
   background:#dcfce7;
   color:#16a34a;
 }
+.status-badge.inactive{
+  background:#fee2e2;
+  color:#dc2626;
+}
 
 .select-company-btn{
   border:none;

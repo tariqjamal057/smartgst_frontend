@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useOutletContext } from "react-router-dom";
+import * as services from "../api/services";
 import {
   Search,
   CalendarDays,
@@ -11,123 +12,13 @@ import {
   Building2,
   BadgeIndianRupee,
   ReceiptText,
-   BookOpen
+  BookOpen
 } from "lucide-react";
 import '../styles/LedgerBook.css';
 
-// Mock data for demonstration
-const mockLedgers = [
-  {
-    id: '1',
-    name: 'Bismi Enterprises',
-    type: 'customer',
-    openingBalance: 10000,
-    entries: [
-      {
-        id: 'e1',
-        date: '01-04-25',
-        vancherType: 'Opening Balance',
-        vancherNo: 'OB-001',
-        narration: 'Opening Balance',
-        amountDr: 10000,
-        amountCr: 0,
-        balance: 10000,
-        mo: 'Dr'
-      },
-      {
-        id: 'e2',
-        date: '05-05-25',
-        vancherType: 'Sales',
-        vancherNo: 'SA-2025001',
-        narration: 'Sales AK',
-        amountDr: 0,
-        amountCr: 218000,
-        balance: 228000,
-        mo: 'Dr'
-      },
-      {
-        id: 'e3',
-        date: '06-05-25',
-        vancherType: 'Receipt',
-        vancherNo: 'INC-20',
-        narration: 'IDB/Bank Chq.No: 200000',
-        amountDr: 200000,
-        amountCr: 0,
-        balance: 28000,
-        mo: 'Dr'
-      }
-    ]
-  },
-  {
-    id: '2',
-    name: 'Suresh Kumar',
-    type: 'salesman',
-    code: 'SM-001',
-    openingBalance: 0,
-    entries: [],
-    salesmanData: [
-      {
-        id: 's1',
-        date: '01-04-25',
-        partyName: 'Bismi Enterprises',
-        vancherType: 'Opening Balance',
-        vancherNo: 'OB-001',
-        mo: 'Cr',
-        salesAmount: 15000,
-        commPercent: 5,
-        commAmount: 750,
-        amountDr: 0,
-        amountCr: 15000,
-        balance: 15000
-      },
-      {
-        id: 's2',
-        date: '05-05-25',
-        partyName: 'Bismi Enterprises',
-        vancherType: 'Salary A/c',
-        vancherNo: 'JN-25',
-        mo: 'Cr',
-        salesAmount: 10000,
-        commPercent: 0,
-        commAmount: 0,
-        amountDr: 0,
-        amountCr: 10000,
-        balance: 25000,
-      },
-      {
-        id: 's3',
-        date: '31-05-25',
-        partyName: 'IDB/Bank',
-        vancherType: 'Payment',
-        vancherNo: 'Pay-120',
-        mo: 'Dr',
-        salesAmount: 25000,
-        commPercent: 0,
-        commAmount: 0,
-        amountDr: 25000,
-        amountCr: 0,
-        balance: 0,
-      },
-      {
-        id: 's4',
-        date: '10-06-25',
-        partyName: 'Commission Entry',
-        vancherType: 'Journal',
-        vancherNo: 'CM-25',
-        mo: 'Cr',
-        salesAmount: 40000,
-        commPercent: 0,
-        commAmount: 0,
-        amountDr: 0,
-        amountCr: 40000,
-        balance: 40000,
-      }
-    ]
-  }
-];
-
 const LedgerBook = () => {
   const { collapsed } = useOutletContext();
+  const [ledgers, setLedgers] = useState([]);
   const [selectedLedger, setSelectedLedger] = useState(null);
   const [isLedgerDropdownOpen, setIsLedgerDropdownOpen] = useState(false);
   const [fromDate, setFromDate] = useState('01-04-2025');
@@ -138,8 +29,72 @@ const LedgerBook = () => {
   const [showBalanceColumn, setShowBalanceColumn] = useState(true);
   const [hideStripeView, setHideStripeView] = useState(false);
   const [showAllColumns, setShowAllColumns] = useState(false);
-  
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [ledgerSearch, setLedgerSearch] = useState("");
+  const [entryLoading, setEntryLoading] = useState(false);
+
   const dropdownRef = useRef(null);
+
+  // Fetch ledger list (parties/accounts)
+  const fetchLedgers = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await services.getParties();
+      const results = res.data.results || res.data || [];
+      setLedgers(Array.isArray(results) ? results : []);
+    } catch (err) {
+      console.error("Failed to fetch ledgers:", err);
+      setError("Failed to load ledgers");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLedgers();
+  }, []);
+
+  // Fetch entries when ledger is selected
+  const fetchLedgerEntries = async (ledger) => {
+    try {
+      setEntryLoading(true);
+      const params = {
+        account: ledger.id || ledger.account || ledger.name,
+        from_date: fromDate,
+        to_date: toDate,
+      };
+      const res = await services.getLedgerEntries(params);
+      const entries = res.data.results || res.data || [];
+      const entryArray = Array.isArray(entries) ? entries : [];
+
+      setSelectedLedger({
+        ...ledger,
+        entries: entryArray.map((e, i) => ({
+          id: e.id || i,
+          date: e.date || e.transaction_date || "",
+          vancherType: e.voucher_type || e.vancherType || "",
+          vancherNo: e.voucher_no || e.vancherNo || "",
+          narration: e.narration || "",
+          amountDr: Number(e.amount_dr || e.debit || e.dr || 0),
+          amountCr: Number(e.amount_cr || e.credit || e.cr || 0),
+          balance: Number(e.balance || 0),
+          mo: e.dr_cr || e.mo || (Number(e.amount_dr || e.debit || 0) > 0 ? "Dr" : "Cr"),
+        })),
+        openingBalance: Number(ledger.opening_balance || ledger.openingBalance || 0),
+      });
+    } catch (err) {
+      console.error("Failed to fetch ledger entries:", err);
+      setSelectedLedger({
+        ...ledger,
+        entries: [],
+        openingBalance: Number(ledger.opening_balance || ledger.openingBalance || 0),
+      });
+    } finally {
+      setEntryLoading(false);
+    }
+  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -153,8 +108,8 @@ const LedgerBook = () => {
   }, []);
 
   const calculateTotals = (entries) => {
-    const totalDr = entries.reduce((sum, e) => sum + e.amountDr, 0);
-    const totalCr = entries.reduce((sum, e) => sum + e.amountCr, 0);
+    const totalDr = entries.reduce((sum, e) => sum + (e.amountDr || 0), 0);
+    const totalCr = entries.reduce((sum, e) => sum + (e.amountCr || 0), 0);
     return { totalDr, totalCr };
   };
 
@@ -165,16 +120,18 @@ const LedgerBook = () => {
     }).format(amount);
   };
 
-  // const handleApply = () => {
-  //   // Apply filters logic here
-  //   console.log('Applying filters:', { fromDate, toDate, selectedLedger });
-  // };
+  const filteredLedgers = ledgers.filter((l) => {
+    if (!ledgerSearch) return true;
+    const name = l.name || l.ledger_name || "";
+    return name.toLowerCase().includes(ledgerSearch.toLowerCase());
+  });
 
   const renderLedgerTable = (ledger) => {
-    const { totalDr, totalCr } = calculateTotals(ledger.entries);
-    const closingBalance = ledger.entries.length > 0 
-      ? ledger.entries[ledger.entries.length - 1].balance 
-      : ledger.openingBalance;
+    const entries = ledger.entries || [];
+    const { totalDr, totalCr } = calculateTotals(entries);
+    const closingBalance = entries.length > 0
+      ? entries[entries.length - 1].balance
+      : ledger.openingBalance || 0;
 
     return (
       <div className="corporate-table-wrapper">
@@ -194,29 +151,29 @@ const LedgerBook = () => {
           </thead>
           <tbody>
             <tr className="opening-row">
-              <td>{fromDate.split('-')[0]}-{fromDate.split('-')[1]}-{fromDate.split('-')[2].slice(-2)}</td>
-              <td className="font-medium">{ledger.name}</td>
+              <td>{fromDate}</td>
+              <td className="font-medium">{ledger.name || ledger.ledger_name || ""}</td>
               {showVancherNo && <td>-</td>}
               <td>Opening Balance</td>
-              <td>{ledger.openingBalance >= 0 ? 'Dr' : 'Cr'}</td>
+              <td>{(ledger.openingBalance || 0) >= 0 ? 'Dr' : 'Cr'}</td>
               {showNarration && <td>Opening Balance</td>}
               <td className="text-right debit">
-                {ledger.openingBalance >= 0 ? formatCurrency(ledger.openingBalance) : '-'}
+                {(ledger.openingBalance || 0) >= 0 ? formatCurrency(ledger.openingBalance || 0) : '-'}
               </td>
               <td className="text-right credit">
-                {ledger.openingBalance < 0 ? formatCurrency(Math.abs(ledger.openingBalance)) : '-'}
+                {(ledger.openingBalance || 0) < 0 ? formatCurrency(Math.abs(ledger.openingBalance || 0)) : '-'}
               </td>
               {showBalanceColumn && (
                 <td className="text-right balance">
-                  {formatCurrency(ledger.openingBalance)} {ledger.openingBalance >= 0 ? 'Dr' : 'Cr'}
+                  {formatCurrency(ledger.openingBalance || 0)} {(ledger.openingBalance || 0) >= 0 ? 'Dr' : 'Cr'}
                 </td>
               )}
             </tr>
 
-            {ledger.entries.map((entry, idx) => (
+            {entries.map((entry, idx) => (
               <tr key={entry.id} className={!hideStripeView && idx % 2 === 0 ? 'stripe-row' : ''}>
                 <td>{entry.date}</td>
-                <td className="font-medium">{ledger.name}</td>
+                <td className="font-medium">{ledger.name || ledger.ledger_name || ""}</td>
                 {showVancherNo && <td>{entry.vancherNo}</td>}
                 <td>{entry.vancherType}</td>
                 <td>{entry.mo}</td>
@@ -258,82 +215,6 @@ const LedgerBook = () => {
     );
   };
 
-  const renderSalesmanTable = (ledger) => {
-    if (!ledger.salesmanData) return null;
-    
-    const totalSales = ledger.salesmanData.reduce((sum, e) => sum + e.salesAmount, 0);
-    const totalComm = ledger.salesmanData.reduce((sum, e) => sum + e.commAmount, 0);
-    const closingBalance = ledger.salesmanData.length > 0 
-      ? ledger.salesmanData[ledger.salesmanData.length - 1].balance 
-      : 0;
-
-    return (
-      <div className="salesman-section">
-        <div className="salesman-info-bar">
-          <span className="info-icon">👤</span>
-          <span className="info-text">Salesman Code: <strong>{ledger.code || 'N/A'}</strong></span>
-        </div>
-        <div className="corporate-table-wrapper">
-          <table className="corporate-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Party Name</th>
-                {showVancherNo && <th>Voucher No</th>}
-                <th>Voucher Type</th>
-                <th>Dr/Cr</th>
-                <th className="text-right">Sales Amount (₹)</th>
-                <th className="text-right">Commission %</th>
-                <th className="text-right">Commission Amount (₹)</th>
-                <th className="text-right">Debit (₹)</th>
-                <th className="text-right">Credit (₹)</th>
-                {showBalanceColumn && <th className="text-right">Balance (₹)</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {ledger.salesmanData.map((entry, idx) => (
-                <tr key={entry.id} className={!hideStripeView && idx % 2 === 0 ? 'stripe-row' : ''}>
-                  <td>{entry.date}</td>
-                  <td className="font-medium">{entry.partyName}</td>
-                  {showVancherNo && <td>{entry.vancherNo}</td>}
-                  <td>{entry.vancherType}</td>
-                  <td>{entry.mo}</td>
-                  <td className="text-right">{formatCurrency(entry.salesAmount)}</td>
-                  <td className="text-right">{entry.commPercent}%</td>
-                  <td className="text-right commission">{formatCurrency(entry.commAmount)}</td>
-                  <td className="text-right debit">
-                    {entry.amountDr > 0 ? formatCurrency(entry.amountDr) : '-'}
-                  </td>
-                  <td className="text-right credit">
-                    {entry.amountCr > 0 ? formatCurrency(entry.amountCr) : '-'}
-                  </td>
-                  {showBalanceColumn && (
-                    <td className="text-right balance">
-                      {formatCurrency(entry.balance)} {entry.balance >= 0 ? 'Cr' : 'Dr'}
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className="total-row">
-                <td colSpan={showVancherNo ? 5 : 4} className="text-right">
-                  <strong>Totals</strong>
-                </td>
-                <td className="text-right"><strong>{formatCurrency(totalSales)}</strong></td>
-                <td></td>
-                <td className="text-right"><strong>{formatCurrency(totalComm)}</strong></td>
-                <td className="text-right debit"><strong>{formatCurrency(ledger.salesmanData.reduce((sum, e) => sum + e.amountDr, 0))}</strong></td>
-                <td className="text-right credit"><strong>{formatCurrency(ledger.salesmanData.reduce((sum, e) => sum + e.amountCr, 0))}</strong></td>
-                {showBalanceColumn && <td className="text-right balance"><strong>{formatCurrency(closingBalance)}</strong></td>}
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      </div>
-    );
-  };
-
   return (
     <div className={`main-content ${collapsed ? "collapsed" : ""}`}>
       <div className="ledger-content">
@@ -362,14 +243,6 @@ const LedgerBook = () => {
                 <polyline points="10 9 9 9 8 9"/>
               </svg>
               Export
-            </button>
-            <button className="action-btn pdf-led-btn">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                <polyline points="7 10 12 15 17 10"/>
-                <line x1="12" y1="15" x2="12" y2="3"/>
-              </svg>
-              PDF
             </button>
             <button className="action-btn print-led-btn">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -431,7 +304,7 @@ const LedgerBook = () => {
                   className="ledger-select-btn"
                 >
                   <span className={selectedLedger ? 'selected-text' : 'placeholder-text'}>
-                    {selectedLedger ? selectedLedger.name : 'Choose a ledger...'}
+                    {selectedLedger ? (selectedLedger.name || selectedLedger.ledger_name) : 'Choose a ledger...'}
                   </span>
                   <svg className={`dropdown-chevron ${isLedgerDropdownOpen ? 'open' : ''}`} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <polyline points="6 9 12 15 18 9"/>
@@ -439,32 +312,47 @@ const LedgerBook = () => {
                 </button>
                 {isLedgerDropdownOpen && (
                   <div className="ledgerbook-dropdown-menu">
-                    {mockLedgers.map((ledger) => (
-                      <button
-                        key={ledger.id}
-                        onClick={() => {
-                          setSelectedLedger(ledger);
-                          setIsLedgerDropdownOpen(false);
-                        }}
-                        className="ledger-option"
-                      >
-                        <div className="option-info">
-                          <span className="option-name">{ledger.name}</span>
-                          <span className="option-type">{ledger.type}</span>
-                        </div>
-                      </button>
-                    ))}
+                    <div className="ledgerbook-search-wrapper">
+                      <input
+                        type="text"
+                        className="ledgerbook-search-input"
+                        placeholder="Search ledgers..."
+                        value={ledgerSearch}
+                        onChange={(e) => setLedgerSearch(e.target.value)}
+                        autoFocus
+                      />
+                    </div>
+                    {loading ? (
+                      <div className="ledgerbook-loading">Loading...</div>
+                    ) : filteredLedgers.length === 0 ? (
+                      <div className="ledgerbook-empty">No ledgers found</div>
+                    ) : (
+                      filteredLedgers.map((ledger, idx) => (
+                        <button
+                          key={ledger.id || idx}
+                          onClick={() => {
+                            setSelectedLedger(ledger);
+                            setIsLedgerDropdownOpen(false);
+                            setLedgerSearch("");
+                            fetchLedgerEntries(ledger);
+                          }}
+                          className="ledger-option"
+                        >
+                          <div className="option-info">
+                            <span className="option-name">{ledger.name || ledger.ledger_name}</span>
+                            <span className="option-type">{ledger.party_type || ledger.type || "Account"}</span>
+                          </div>
+                        </button>
+                      ))
+                    )}
                   </div>
                 )}
               </div>
             </div>
             <div className="filter-field apply-field">
-              {/* <button className="apply-btn" onClick={handleApply}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
-                </svg>
+              <button className="apply-btn" onClick={() => selectedLedger && fetchLedgerEntries(selectedLedger)}>
                 Apply Filters
-              </button> */}
+              </button>
             </div>
           </div>
 
@@ -499,29 +387,30 @@ const LedgerBook = () => {
         {/* Ledger Display Area */}
         {selectedLedger ? (
           <div className="ledger-display-area">
-            <div className="ledger-header-info">
-              <div>
-                <h3>{selectedLedger.name}</h3>
-                <div className="ledger-meta">
-                  <span className="meta-badge">{selectedLedger.type}</span>
-                  <span className="meta-text">Ledger Account</span>
-                </div>
-              </div>
-              <div className="date-range-badge">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                  <line x1="16" y1="2" x2="16" y2="6"/>
-                  <line x1="8" y1="2" x2="8" y2="6"/>
-                  <line x1="3" y1="10" x2="21" y2="10"/>
-                </svg>
-                <span>{fromDate} - {toDate}</span>
-              </div>
-            </div>
-
-            {selectedLedger.type === 'salesman' && selectedLedger.salesmanData ? (
-              renderSalesmanTable(selectedLedger)
+            {entryLoading ? (
+              <div style={{ textAlign: "center", padding: "40px" }}>Loading ledger entries...</div>
             ) : (
-              renderLedgerTable(selectedLedger)
+              <>
+                <div className="ledger-header-info">
+                  <div>
+                    <h3>{selectedLedger.name || selectedLedger.ledger_name}</h3>
+                    <div className="ledger-meta">
+                      <span className="meta-badge">{selectedLedger.party_type || selectedLedger.type || "Account"}</span>
+                      <span className="meta-text">Ledger Account</span>
+                    </div>
+                  </div>
+                  <div className="date-range-badge">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                      <line x1="16" y1="2" x2="16" y2="6"/>
+                      <line x1="8" y1="2" x2="8" y2="6"/>
+                      <line x1="3" y1="10" x2="21" y2="10"/>
+                    </svg>
+                    <span>{fromDate} - {toDate}</span>
+                  </div>
+                </div>
+                {renderLedgerTable(selectedLedger)}
+              </>
             )}
           </div>
         ) : (

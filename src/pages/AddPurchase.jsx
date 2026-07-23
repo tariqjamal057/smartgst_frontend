@@ -1,11 +1,7 @@
-import { useOutletContext } from "react-router-dom";
+import { useEffect } from "react";
+import { useOutletContext, useNavigate } from "react-router-dom";
+import HomeAddPurchase from "./HomeAddPurchase";
 
 export default function AddPurchase() {
-  const { collapsed } = useOutletContext();
-
-  return (
-    <div className={`main ${collapsed ? "collapsed" : ""}`}>
-      Add Purchase Page
-    </div>
-  );
+  return <HomeAddPurchase />;
 }

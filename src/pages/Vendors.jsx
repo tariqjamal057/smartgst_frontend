@@ -422,98 +422,17 @@ import {
   ReceiptText
 } from "lucide-react";
 import "../styles/VendorLedger.css";
-const dummyParties = [
-  {
-    id: 1,
-    name: "Bismi Enterprises",
-    gstin: "09ABCDE0102D1Z8",
-    contact: "9876543210",
-    email: "bismi@gmail.com",
-    address: "Meerut, Uttar Pradesh",
-    balance: 120500,
-    type: "Dr"
-  },
 
-  {
-    id: 2,
-    name: "Super Sports Fitness",
-    gstin: "09ABCDE2222D1Z8",
-    contact: "9999999999",
-    email: "fitness@gmail.com",
-    address: "Delhi",
-    balance: 0,
-    type: "Cr"
-  },
-
-  {
-    id: 3,
-    name: "Lani India Industries",
-    gstin: "09ABCDE3333D1Z8",
-    contact: "8888888888",
-    email: "lani@gmail.com",
-    address: "Noida",
-    balance: 180300,
-    type: "Dr"
-  },
-
-  {
-    id: 4,
-    name: "Kumar Trading Co.",
-    gstin: "09ABCDE4444D1Z8",
-    contact: "7777777777",
-    email: "kumar@gmail.com",
-    address: "Kanpur",
-    balance: -80500,
-    type: "Cr"
-  }
-];
-
-const ledgerEntries = [
-  {
-    date: "01-04-25",
-    ledger: "Opening Balance",
-    narration: "-",
-    voucherType: "-",
-    voucherNo: "-",
-    invoiceNo: "-",
-    dr: 10000,
-    cr: 0,
-    balance: 10000
-  },
-
-  {
-    date: "05-05-25",
-    ledger: "Sales A/c",
-    narration: "Invoice Sale",
-    voucherType: "Sales",
-    voucherNo: "SAL-20",
-    invoiceNo: "INV-220",
-    dr: 218000,
-    cr: 0,
-    balance: 228000
-  },
-
-  {
-    date: "06-05-25",
-    ledger: "IDBI Bank",
-    narration: "Chq No 120",
-    voucherType: "Receipt",
-    voucherNo: "REC-11",
-    invoiceNo: "INV-220",
-    dr: 0,
-    cr: 200000,
-    balance: 28000
-  }
-];
 
 const VendorLedger = () => {
 
   const [search, setSearch] = useState("");
   const { collapsed } = useOutletContext();
   const navigate = useNavigate();
-  const [selectedParty, setSelectedParty] =
-    useState(dummyParties[0]);
-  const [parties, setParties] = useState(dummyParties);
+  const [selectedParty, setSelectedParty] = useState(null);
+  const [parties, setParties] = useState([]);
+  const [ledgerEntries, setLedgerEntries] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
@@ -522,9 +441,13 @@ const VendorLedger = () => {
         if (Array.isArray(res.data) && res.data.length > 0) {
           setParties(res.data);
           setSelectedParty(res.data[0]);
+        } else {
+          setParties([]);
         }
       } catch {
-        // keep dummyParties fallback
+        setParties([]);
+      } finally {
+        setLoading(false);
       }
     })();
   }, []);
@@ -667,7 +590,7 @@ const [showPrinting, setShowPrinting] =
               <div
                 key={party.id}
                 className={`vendor-party-card ${
-                  selectedParty.id === party.id
+                  selectedParty?.id === party.id
                     ? "active"
                     : ""
                 }`}
@@ -858,39 +781,39 @@ const [showPrinting, setShowPrinting] =
             <div className="vendor-preview-header">
               <div>
                 <h2>
-                  {selectedParty.name}
+                  {selectedParty?.name}
                 </h2>
                 {config.showGSTIN && (
                   <p>
                     GSTIN:
                     {" "}
-                    {selectedParty.gstin}
+                    {selectedParty?.gstin}
                   </p>
                 )}
                 {config.showCompanyAddress && (
                   <p>
-                    {selectedParty.address}
+                    {selectedParty?.address}
                   </p>
                 )}
                 {config.showContactNumber && (
                   <p>
                     Contact:
                     {" "}
-                    {selectedParty.contact}
+                    {selectedParty?.contact}
                   </p>
                 )}
                 {config.showEmail && (
                   <p>
                     Email:
                     {" "}
-                    {selectedParty.email}
+                    {selectedParty?.email}
                   </p>
                 )}
               </div>
               <div className="vendor-preview-balance">
                 <BadgeIndianRupee size={18} />
                 ₹
-                {selectedParty.balance.toLocaleString()}
+                {(selectedParty?.balance ?? 0).toLocaleString()}
               </div>
             </div>
             {/* TABLE */}

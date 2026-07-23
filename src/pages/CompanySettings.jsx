@@ -80,6 +80,8 @@ const CompanySettings = ({onSave}) => {
   const [threshold, setThreshold] = useState("50000");
   const [ewbLoginId, setEwbLoginId] = useState("");
   const [ewbPassword, setEwbPassword] = useState("");
+  const [einvoiceLoginId, setEinvoiceLoginId] = useState("");
+  const [einvoicePassword, setEinvoicePassword] = useState("");
   const [financialYear, setFinancialYear] = useState("2024-25");
   const [bookBeginning, setBookBeginning] = useState("");
   const [returnType, setReturnType] = useState("Monthly");
@@ -150,12 +152,27 @@ const CompanySettings = ({onSave}) => {
     try {
       await services.createCompanySetting({
         company_name: newCompanyName,
-        gstin: gstin,
+        gstin,
         address: registeredAddress,
+        branch_address: branchAddress,
         state: selectedState,
-        email: email,
+        country: "India",
+        email,
+        website,
         phone: contactNo,
+        contact_person: contactPerson,
         financial_year: financialYear,
+        book_beginning: bookBeginning || null,
+        return_type: returnType,
+        registration_type: registrationType,
+        use_inventory: useInventory,
+        eway_bill: ewayBill,
+        eway_bill_threshold: threshold,
+        ewb_login_id: ewbLoginId,
+        ewb_password: ewbPassword,
+        e_invoice: eInvoice,
+        einvoice_login_id: einvoiceLoginId,
+        einvoice_password: einvoicePassword,
       });
     } catch (err) { console.error(err); }
   };

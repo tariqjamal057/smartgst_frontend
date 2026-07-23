@@ -11,11 +11,15 @@ export default function Layout() {
   const location = useLocation();
 
   useEffect(() => {
-    const tenantId = localStorage.getItem("tenant_id");
     const token = localStorage.getItem("access_token");
+    const tenantId = localStorage.getItem("tenant_id");
+
     if (!token) {
       navigate("/login", { replace: true });
-    } else if (!tenantId && location.pathname !== "/select-company") {
+      return;
+    }
+
+    if (!tenantId && location.pathname !== "/select-company") {
       navigate("/select-company", { replace: true });
     }
   }, [navigate, location.pathname]);

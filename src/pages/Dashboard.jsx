@@ -1,562 +1,3 @@
-// // // import { useEffect, useRef } from "react";
-// // // import { useOutletContext } from "react-router-dom";
-// // // import "../styles/dashboard.css";
-
-// // // export default function Dashboard() {
-// // //     const { collapsed } = useOutletContext();
-// // //     const donutRef = useRef(null);
-// // //     const lineRef = useRef(null);
-
-// // //     useEffect(() => {
-// // //         let donutChart, lineChart;
-
-// // //         donutChart = new window.Chart(donutRef.current, {
-// // //             type: "doughnut",
-// // //             data: {
-// // //                 labels: ["income", "expense", "profit"],
-// // //                 datasets: [{
-// // //                     data: [45, 20, 12],
-// // //                     backgroundColor: ["#34d399", "#fb923c", "#60a5fa"]
-// // //                 }]
-// // //             },
-// // //             options: {
-// // //                 cutout: "70%",
-// // //                 plugins: { legend: { position: "bottom" } }
-// // //             }
-// // //         });
-
-// // //         const data = {
-// // //             months: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
-// // //             income: [120, 140, 160, 180, 210, 240, 260, 250, 270, 290, 310, 340],
-// // //             expense: [80, 90, 110, 120, 130, 150, 165, 170, 175, 185, 195, 210],
-// // //             profit: [40, 50, 50, 60, 80, 90, 95, 80, 95, 105, 115, 130]
-// // //         };
-
-// // //         const kIncome = document.getElementById("kIncome");
-// // //         const kExpense = document.getElementById("kExpense");
-// // //         const kProfit = document.getElementById("kProfit");
-
-// // //         lineChart = new window.Chart(lineRef.current, {
-// // //             type: "line",
-// // //             data: {
-// // //                 labels: data.months,
-// // //                 datasets: [
-// // //                     { label: "Income", data: data.income, borderColor: "#34d399", tension: .5, pointRadius: 0, borderWidth: 3 },
-// // //                     { label: "Expense", data: data.expense, borderColor: "#fb923c", tension: .5, pointRadius: 0, borderWidth: 3 },
-// // //                     { label: "Profit", data: data.profit, borderColor: "#60a5fa", tension: .5, pointRadius: 0, borderWidth: 3 }
-// // //                 ]
-// // //             },
-// // //             options: {
-// // //                 interaction: { mode: "index", intersect: false },
-// // //                 plugins: {
-// // //                     legend: { display: false },
-// // //                     tooltip: {
-// // //                         callbacks: {
-// // //                             label(ctx) {
-// // //                                 if (kIncome && kExpense && kProfit) {
-// // //                                     kIncome.textContent = `₹ ${data.income[ctx.dataIndex]}k`;
-// // //                                     kExpense.textContent = `₹ ${data.expense[ctx.dataIndex]}k`;
-// // //                                     kProfit.textContent = `₹ ${data.profit[ctx.dataIndex]}k`;
-// // //                                 }
-// // //                                 return `${ctx.dataset.label}: ₹ ${ctx.parsed.y}k`;
-// // //                             },
-// // //                         },
-// // //                     },
-// // //                 },
-// // //                 scales: { x: { grid: { display: false } }, y: { display: false } }
-// // //             }
-// // //         });
-
-// // //         document.querySelectorAll(".legend-item").forEach(i => {
-// // //             i.onclick = () => {
-// // //                 const d = lineChart.data.datasets[i.dataset.index];
-// // //                 i.classList.toggle("inactive");
-// // //                 d.hidden = i.classList.contains("inactive");
-// // //                 lineChart.update();
-// // //             };
-// // //         });
-
-// // //         return () => {
-// // //             donutChart.destroy();
-// // //             lineChart.destroy();
-// // //         };
-// // //     }, []);
-
-// // //     return (
-// // //         <div className={`main ${collapsed ? "collapsed" : ""}`} id="main">
-// // //             {/* 🔹 COPY SUMMARY, GRID & REPORTS HTML HERE EXACTLY */}
-// // //             {/* Replace canvases with refs */}
-// // //             <canvas ref={lineRef} id="financeChart"></canvas>
-// // //             <canvas ref={donutRef} id="donutChart"></canvas>
-// // //         </div>
-// // //     );
-// // // }
-
-
-
-
-
-// // import { useOutletContext } from "react-router-dom";
-// // import React, { useEffect, useRef, useState } from "react";
-
-// // import {
-// //   Chart as ChartJS,
-// //   LineElement,
-// //   ArcElement,
-// //   PointElement,
-// //   CategoryScale,
-// //   LinearScale,
-// //   Tooltip,
-// //   Legend
-// // } from "chart.js";
-// // import { Line, Doughnut } from "react-chartjs-2";
-
-// // ChartJS.register(
-// //   LineElement,
-// //   ArcElement,
-// //   PointElement,
-// //   CategoryScale,
-// //   LinearScale,
-// //   Tooltip,
-// //   Legend
-// // );
-
-// // export default function Dashboard() {
-// //   const { collapsed } = useOutletContext();
-// //   const [setCollapsed] = useState(false);
-// //   const [openMenu, setOpenMenu] = useState(null);
-
-// //   const [kpi, setKpi] = useState({
-// //     income: "–",
-// //     expense: "–",
-// //     profit: "–"
-// //   });
-
-// //   const chartRef = useRef(null);
-
-// //   const data2024 = {
-// //     months: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
-// //     income: [120, 140, 160, 180, 210, 240, 260, 250, 270, 290, 310, 340],
-// //     expense: [80, 90, 110, 120, 130, 150, 165, 170, 175, 185, 195, 210],
-// //     profit: [40, 50, 50, 60, 80, 90, 95, 80, 95, 105, 115, 130]
-// //   };
-
-// //   const lineData = {
-// //     labels: data2024.months,
-// //     datasets: [
-// //       {
-// //         label: "Income",
-// //         data: data2024.income,
-// //         borderColor: "#34d399",
-// //         tension: 0.5,
-// //         borderWidth: 3,
-// //         pointRadius: 0
-// //       },
-// //       {
-// //         label: "Expense",
-// //         data: data2024.expense,
-// //         borderColor: "#fb923c",
-// //         tension: 0.5,
-// //         borderWidth: 3,
-// //         pointRadius: 0
-// //       },
-// //       {
-// //         label: "Profit",
-// //         data: data2024.profit,
-// //         borderColor: "#60a5fa",
-// //         tension: 0.5,
-// //         borderWidth: 3,
-// //         pointRadius: 0
-// //       }
-// //     ]
-// //   };
-
-// //   const lineOptions = {
-// //     responsive: true,
-// //     maintainAspectRatio: false,
-// //     interaction: { mode: "index", intersect: false },
-// //     plugins: {
-// //       legend: { display: false },
-// //       tooltip: {
-// //         callbacks: {
-// //           label(ctx) {
-// //             setKpi({
-// //               income: `₹ ${data2024.income[ctx.dataIndex]}k`,
-// //               expense: `₹ ${data2024.expense[ctx.dataIndex]}k`,
-// //               profit: `₹ ${data2024.profit[ctx.dataIndex]}k`
-// //             });
-// //             return `${ctx.dataset.label}: ₹ ${ctx.parsed.y}k`;
-// //           }
-// //         }
-// //       }
-// //     },
-// //     scales: {
-// //       x: { grid: { display: false } },
-// //       y: { display: false }
-// //     }
-// //   };
-
-// //   const donutData = {
-    
-// //     datasets: [
-// //       {
-// //         data: [45, 20, 12],
-// //         backgroundColor: ["#34d399", "#fb923c", "#60a5fa"]
-// //       }
-// //     ],
-// //     labels: ["Income", "Expense", "Profit"]
-// //   };
-
-// //   const toggleDataset = (index) => {
-// //     const chart = chartRef.current;
-// //     const meta = chart.getDatasetMeta(index);
-// //     meta.hidden = meta.hidden === null ? !chart.data.datasets[index].hidden : null;
-// //     chart.update();
-// //   };
-
-
-
-// //   return <div className={`main ${collapsed ? "collapsed" : ""}`}>
-// //     <main className={`Dashboard_main ${collapsed ? "collapsed" : ""}`}>
-// //       {/* SUMMARY */}
-// //       <div className="dash-summary">
-// //         {[
-// //           ["Total Sale", "₹ 4,80,000"],
-// //           ["Total Purchase", "₹ 2,15,000"],
-// //           ["Total Expense", "₹ 2,65,000"],
-// //           ["Net Profit", "₹ 1,90,000"]
-// //         ].map((s, i) => (
-// //           <div className="dash-card" key={i}>
-// //             <div>
-// //               <h5>{s[0]}</h5>
-// //               <div className="dash-amounts">{s[1]}</div>
-// //             </div>
-// //           </div>
-// //         ))}
-// //       </div>
-
-// //       {/* CHART GRID */}
-// //       {/* <div className="grid"> */}
-// //         <div className="chart-card">
-// //             <div className="card-header">
-// //               <div className="card-title">Income, Expense & Profit</div>
-// //             </div>
-
-// //           <div className="kpis">
-// //             <div className="kpi income-text">Income <span>{kpi.income}</span></div>
-// //             <div className="kpi expense-text">Expense <span>{kpi.expense}</span></div>
-// //             <div className="kpi profit-text">Profit <span>{kpi.profit}</span></div>
-// //           </div>
-
-// //           <div className="legend">
-// //             {["income", "expense", "profit"].map((l, i) => (
-// //               <div key={i} className="legend-item" onClick={() => toggleDataset(i)}>
-// //                 <div className={`legend-dot ${l}`}>{l[0]}</div>{l}
-// //               </div>
-// //             ))}
-// //           </div>
-
-// //           <div className="chart-area">
-// //             <Line ref={chartRef} data={lineData} options={lineOptions} />
-// //           </div>
-// //         </div>
-
-// //         {/* <div className="card">
-// //           <h3>Expense Breakup</h3>
-// //           <div className="donut-box">
-// //             <Doughnut options={{ cutout: "70%" }} data={donutData}  />
-// //           </div>
-// //         </div> */}
-// //       {/* </div> */}
-
-// //       {/* REPORTS */}
-// //       <div className="reports">
-// //         <div className="card-header">
-// //           <h2>Recent Accounting Entries</h2>
-// //           <button>View All</button>
-// //         </div>
-
-// //         <table>
-// //           <thead>
-// //             <tr>
-// //               <th>Date</th>
-// //               <th>Type</th>
-// //               <th>Party</th>
-// //               <th>Amount</th>
-// //             </tr>
-// //           </thead>
-// //           <tbody>
-// //             <tr>
-// //               <td>12 Aug</td>
-// //               <td><span className="badge sale">Sales</span></td>
-// //               <td>ABC Traders</td>
-// //               <td>₹25,000</td>
-// //             </tr>
-// //             <tr>
-// //               <td>11 Aug</td>
-// //               <td><span className="badge expense">Expense</span></td>
-// //               <td>Office Rent</td>
-// //               <td>₹15,000</td>
-// //             </tr>
-// //           </tbody>
-// //         </table>
-// //       </div>
-
-
-// //     </main>
-// //   </div>;
-// // }
-
-// import { useOutletContext } from "react-router-dom";
-// import React, { useState } from "react";
-
-// import {
-//   Chart as ChartJS,
-//   BarElement,
-//   CategoryScale,
-//   LinearScale,
-//   Tooltip,
-//   Legend
-// } from "chart.js";
-
-// import { Bar } from "react-chartjs-2";
-
-// ChartJS.register(
-//   BarElement,
-//   CategoryScale,
-//   LinearScale,
-//   Tooltip,
-//   Legend
-// );
-
-// export default function Dashboard() {
-
-//   const { collapsed } = useOutletContext();
-
-//   const [view, setView] = useState("monthly");
-
-//   /* -------------------- CHART DATA -------------------- */
-
-//   const chartData = {
-
-//     monthly: {
-//       labels: ["Jan","Feb","Mar","Apr","May","Jun","Aug","Sep","Oct","Nov","Dec"],
-//       datasets: [
-//         {
-//           label: "Sales",
-//           data: [400000,480000,420000,500000,520000,550000,580000,600000,620000,650000,680000,700000],
-//           backgroundColor: "#ec4899"
-//         },
-//         {
-//           label: "Purchase",
-//           data: [200000,215000,230000,240000,260000,270000, 280000,290000,300000,310000,320000,330000],
-//           backgroundColor: "#22c55e"
-//         },
-//         {
-//           label: "Expense",
-//           data: [150000,180000,170000,190000,200000,210000, 220000,230000,240000,250000,260000,270000],
-//           backgroundColor: "#f97316"
-//         },
-//         {
-//           label: "Net Profit",
-//           data: [50000,85000,20000,70000,60000,70000, 80000,80000,80000,90000,100000,100000],
-//           backgroundColor: "#eab308"
-//         }
-//       ]
-//     },
-
-//     quarterly: {
-//       labels: ["Q1","Q2","Q3","Q4"],
-//       datasets: [
-//         {
-//           label: "Sales",
-//           data: [1200000,1500000,1700000,1900000],
-//           backgroundColor: "#ec4899"
-//         },
-//         {
-//           label: "Purchase",
-//           data: [600000,700000,750000,800000],
-//           backgroundColor: "#22c55e"
-//         },
-//         {
-//           label: "Expense",
-//           data: [450000,520000,600000,640000],
-//           backgroundColor: "#f97316"
-//         },
-//         {
-//           label: "Net Profit",
-//           data: [150000,280000,350000,460000],
-//           backgroundColor: "#eab308"
-//         }
-//       ]
-//     },
-
-//     yearly: {
-//       labels: ["2022","2023","2024"],
-//       datasets: [
-//         {
-//           label: "Sales",
-//           data: [4500000,5200000,6000000],
-//           backgroundColor: "#ec4899"
-//         },
-//         {
-//           label: "Purchase",
-//           data: [2300000,2500000,2800000],
-//           backgroundColor: "#22c55e"
-//         },
-//         {
-//           label: "Expense",
-//           data: [1800000,2000000,2200000],
-//           backgroundColor: "#f97316"
-//         },
-//         {
-//           label: "Net Profit",
-//           data: [400000,700000,1000000],
-//           backgroundColor: "#eab308"
-//         }
-//       ]
-//     }
-
-//   };
-
-//   /* -------------------- CHART OPTIONS -------------------- */
-
-//   const barOptions = {
-//     responsive: true,
-//     maintainAspectRatio: false,
-//     plugins:{
-//       legend:{
-//         position:"top"
-//       },
-//       tooltip:{
-//         callbacks:{
-//           label:(ctx)=>{
-//             return ctx.dataset.label + ": ₹ " + ctx.parsed.y.toLocaleString();
-//           }
-//         }
-//       }
-//     },
-//     scales:{
-//       x:{
-//         grid:{display:false}
-//       },
-//       y:{
-//         beginAtZero:true,
-//         ticks:{
-//           callback:(value)=>"₹" + (value/1000) + "k"
-//         }
-//       }
-//     }
-//   };
-
-//   return (
-
-// <div className={`main ${collapsed ? "collapsed" : ""}`}>
-
-// <main className={`Dashboard_main ${collapsed ? "collapsed" : ""}`}>
-
-// {/* -------------------- SUMMARY CARDS -------------------- */}
-
-// <div className="dash-summary">
-
-// {[
-// ["Total Sale","₹ 4,80,000"],
-// ["Total Purchase","₹ 2,15,000"],
-// ["Total Expense","₹ 2,65,000"],
-// ["Net Profit","₹ 1,90,000"]
-// ].map((s,i)=>(
-// <div className="dash-card" key={i}>
-// <div>
-// <h5>{s[0]}</h5>
-// <div className="dash-amounts">{s[1]}</div>
-// </div>
-// </div>
-// ))}
-
-// </div>
-
-// {/* -------------------- CHART -------------------- */}
-
-// <div className="chart-card">
-
-//   <div className="card-header">
-
-//     <div className="card-title">
-//     Income, Expense & Profit
-//     </div>
-
-//     <select className="chart-filter" value={view} onChange={(e)=>setView(e.target.value)}>
-//       <option value="monthly">Monthly</option>
-//       <option value="quarterly">Quarterly</option>
-//       <option value="yearly">Yearly</option>
-//     </select>
-
-//   </div>
-
-//   <div className="chart-area">
-//   <Bar data={chartData[view]} options={barOptions}/>
-//   </div>
-
-// </div>
-
-// {/* -------------------- REPORT TABLE -------------------- */}
-
-// <div className="reports">
-
-// <div className="card-header">
-// <h2>Recent Accounting Entries</h2>
-// <button>View All</button>
-// </div>
-
-// <table>
-
-// <thead>
-// <tr>
-// <th>Date</th>
-// <th>Type</th>
-// <th>Party</th>
-// <th>Amount</th>
-// </tr>
-// </thead>
-
-// <tbody>
-
-// <tr>
-// <td>12 Aug</td>
-// <td><span className="badge sale">Sales</span></td>
-// <td>ABC Traders</td>
-// <td>₹25,000</td>
-// </tr>
-
-// <tr>
-// <td>11 Aug</td>
-// <td><span className="badge expense">Expense</span></td>
-// <td>Office Rent</td>
-// <td>₹15,000</td>
-// </tr>
-
-// <tr>
-// <td>10 Aug</td>
-// <td><span className="badge purchase">Purchase</span></td>
-// <td>XYZ Supplier</td>
-// <td>₹18,000</td>
-// </tr>
-
-// </tbody>
-
-// </table>
-
-// </div>
-
-// </main>
-
-// </div>
-
-// );
-
-// }
-
-
 import React, { useEffect, useState, useMemo } from "react";
 import {useOutletContext,useNavigate} from "react-router-dom";
 import * as services from "../api/services";
@@ -627,70 +68,119 @@ export default function Dashboard() {
     financialYear: ""});
   const [view, setView] = useState("daily");
   const [summaryData, setSummaryData] = useState({
-    totalSales: "3.25 Cr.",
-    totalPurchase: "22.85 Cr.",
-    directExp: "12.5 L",
-    indirectExp: "23.25 L",
-    netProfit: "10.28 L",
-    totalReceipts: "10.28 L",
-    totalPayments: "10.28 L",
-    pendingReceipts: "10.28 L",
-    pendingPayments: "10.28 L",
-    cash: "85K",
-    bank: "3.25 L",
-    assets: "10.52 L",
-    liabilities: "8.25 L",
-    stockBalance: "27.25 L",
-    stockIn: "85 cr",
-    stockOut: "3.25 cr",
+    totalSales: "—",
+    totalPurchase: "—",
+    directExp: "—",
+    indirectExp: "—",
+    netProfit: "—",
+    totalReceipts: "—",
+    totalPayments: "—",
+    pendingReceipts: "—",
+    pendingPayments: "—",
+    cash: "—",
+    bank: "—",
+    assets: "—",
+    liabilities: "—",
+    stockBalance: "—",
+    stockIn: "—",
+    stockOut: "—",
   });
 
   const [recentEntries, setRecentEntries] = useState([]);
+  const [gstData, setGstData] = useState({
+    netOutput: { igst: "—", cgst: "—", sgst: "—", cess: "—", total: "—" },
+    lessInput: { igst: "—", cgst: "—", sgst: "—", cess: "—", total: "—" },
+    itcPayable: { igst: "—", cgst: "—", sgst: "—", cess: "—", total: "—" },
+  });
+  const [ewbStatus, setEwbStatus] = useState({ generated: "—", sales: "—" });
+  const [einvoiceStatus, setEinvoiceStatus] = useState({ generated: "—", sales: "—", pending: "—" });
+  const [trendStats, setTrendStats] = useState({
+    highestSales: "—", highestSalesMonth: "—",
+    lowestSales: "—", lowestSalesMonth: "—",
+    avgMonthlySales: "—",
+    avgProfitMargin: "—",
+  });
+  const [pendingReceipts, setPendingReceipts] = useState([]);
+  const [pendingPayments, setPendingPayments] = useState([]);
+  const [chartRaw, setChartRaw] = useState(null);
 
   useEffect(() => {
     const selectedCompany = localStorage.getItem("company_name") || localStorage.getItem("company") || "";
-    setCompany({
-      companyName: selectedCompany,
-      gstin: "09ABCDE08070128",
-      contactPerson: "Mr. Mohd Sajid",
-      contactNo: "9897325276",
-      financialYear: "2025-26"
-    });
+    setCompany(prev => ({ ...prev, companyName: selectedCompany }));
 
     (async () => {
       try {
-        const res = await services.getDashboardSummary({});
-        const d = res.data;
-        setSummaryData({
-          totalSales: d.total_sales ?? "3.25 Cr.",
-          totalPurchase: d.total_purchase ?? "22.85 Cr.",
-          directExp: d.direct_expenses ?? "12.5 L",
-          indirectExp: d.indirect_expenses ?? "23.25 L",
-          netProfit: d.net_profit ?? "10.28 L",
-          totalReceipts: d.total_receipts ?? "10.28 L",
-          totalPayments: d.total_payments ?? "10.28 L",
-          pendingReceipts: d.pending_receipts ?? "10.28 L",
-          pendingPayments: d.pending_payments ?? "10.28 L",
-          cash: d.cash ?? "85K",
-          bank: d.bank ?? "3.25 L",
-          assets: d.assets ?? "10.52 L",
-          liabilities: d.liabilities ?? "8.25 L",
-          stockBalance: d.stock_balance ?? "27.25 L",
-          stockIn: d.stock_in ?? "85 cr",
-          stockOut: d.stock_out ?? "3.25 cr",
-        });
+        const res = await services.getCompanySettings({});
+        const list = Array.isArray(res.data) ? res.data : res.data?.results ?? [];
+        const cs = list[0] || res.data || {};
+        if (cs.company_name || cs.gstin) {
+          setCompany(prev => ({
+            ...prev,
+            companyName: cs.company_name || prev.companyName,
+            gstin: cs.gstin || "",
+            contactPerson: cs.contact_person || "",
+            contactNo: cs.phone || "",
+            financialYear: cs.financial_year || "",
+          }));
+        }
       } catch {
-        // keep existing mock data
+        // keep localStorage company name only
+      }
+
+      try {
+        const res = await services.getDashboardSummary({});
+        const d = res.data || {};
+        setSummaryData({
+          totalSales: d.total_sales ?? "—",
+          totalPurchase: d.total_purchases ?? "—",
+          directExp: d.direct_expenses ?? "—",
+          indirectExp: d.indirect_expenses ?? "—",
+          netProfit: d.net_profit ?? "—",
+          totalReceipts: d.total_receipts ?? "—",
+          totalPayments: d.total_payments ?? "—",
+          pendingReceipts: d.pending_receivables ?? "—",
+          pendingPayments: d.pending_payables ?? "—",
+          cash: d.cash ?? "—",
+          bank: d.bank ?? "—",
+          assets: d.assets ?? "—",
+          liabilities: d.liabilities ?? "—",
+          stockBalance: d.stock_balance ?? "—",
+          stockIn: d.stock_in ?? "—",
+          stockOut: d.stock_out ?? "—",
+        });
+        setChartRaw(d.chart_data || null);
+        if (d.gst_data) setGstData(d.gst_data);
+        if (d.ewb_status) setEwbStatus(d.ewb_status);
+        if (d.einvoice_status) setEinvoiceStatus(d.einvoice_status);
+        if (d.trend_stats) setTrendStats(d.trend_stats);
+        if (Array.isArray(d.pending_receipts)) setPendingReceipts(d.pending_receipts);
+        if (Array.isArray(d.pending_payments)) setPendingPayments(d.pending_payments);
+      } catch {
+        setSummaryData({
+          totalSales: "—", totalPurchase: "—", directExp: "—", indirectExp: "—",
+          netProfit: "—", totalReceipts: "—", totalPayments: "—",
+          pendingReceipts: "—", pendingPayments: "—",
+          cash: "—", bank: "—", assets: "—", liabilities: "—",
+          stockBalance: "—", stockIn: "—", stockOut: "—",
+        });
       }
 
       try {
         const res = await services.getTransactions({});
         const rows = Array.isArray(res.data) ? res.data : res.data?.results ?? [];
         if (rows.length > 0) {
-          setRecentEntries(rows);
+          const mapped = rows.map(r => ({
+            date: r.date || r.transaction_date || "",
+            party: r.party_name || r.party || "",
+            voucherType: r.voucher_type || r.transaction_type || "",
+            voucherNo: r.receipt_no || r.voucher_no || r.number || "",
+            amountCr: r.received_amount || r.amount_cr || r.credit || "",
+            amountDr: r.paid_amount || r.amount_dr || r.debit || "",
+          }));
+          setRecentEntries(mapped);
         }
       } catch {
-        // keep hardcoded fallback
+        // entries unavailable
       }
     })();
   }, []);
@@ -987,267 +477,105 @@ const createBarGradient = (
 };
 
 
-const chartData = {
-  daily: {
-    labels: [
-      "Mon","Tue","Wed",
-      "Thu","Fri","Sat","Sun"
-    ],
-    datasets: [
-      {
-        label: "Sales",
-        data: [12,15,13,14,18,22,17],
-        backgroundColor: (context) =>
-          createBarGradient(
-            context,
-            "#084ee5",
-            "#a6ceff"
-          ),
-        borderRadius: 5,
-        // barThickness: 8
+const chartData = useMemo(() => {
+  const salesColor = "#084ee5";
+  const salesGradient = "#a6ceff";
+  const purchaseColor = "#032a34";
+  const purchaseGradient = "#4de4f8";
+  const expenseColor = "#f91511";
+  const expenseGradient = "#fcc670";
+  const profitColor = "#05571197";
+  const profitGradient = "#80f4a1";
+
+  const makeDataset = (label, data, c1, c2) => ({
+    label,
+    data,
+    backgroundColor: (context) => createBarGradient(context, c1, c2),
+    borderRadius: 4,
+  });
+
+  if (chartRaw && typeof chartRaw === "object") {
+    const pick = (key, fallback) =>
+      Array.isArray(chartRaw[key]) ? chartRaw[key] : fallback;
+    return {
+      daily: {
+        labels: pick("daily_labels", ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]),
+        datasets: [
+          makeDataset("Sales", pick("daily_sales", [0,0,0,0,0,0,0]), salesColor, salesGradient),
+          makeDataset("Purchase", pick("daily_purchase", [0,0,0,0,0,0,0]), purchaseColor, purchaseGradient),
+          makeDataset("Expenses", pick("daily_expenses", [0,0,0,0,0,0,0]), expenseColor, expenseGradient),
+          makeDataset("Profit", pick("daily_profit", [0,0,0,0,0,0,0]), profitColor, profitGradient),
+        ],
       },
-
-      {
-        label: "Purchase",
-        data: [8,10,9,8,11,13,9],
-        backgroundColor: (context) =>
-        createBarGradient(
-          context,
-          "#032a34",
-          "#4de4f8"
-        ),
-        borderRadius: 4,
-        // barThickness: 8
+      monthly: {
+        labels: pick("monthly_labels", ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]),
+        datasets: [
+          makeDataset("Sales", pick("monthly_sales", [0,0,0,0,0,0,0,0,0,0,0,0]), salesColor, salesGradient),
+          makeDataset("Purchase", pick("monthly_purchase", [0,0,0,0,0,0,0,0,0,0,0,0]), purchaseColor, purchaseGradient),
+          makeDataset("Expenses", pick("monthly_expenses", [0,0,0,0,0,0,0,0,0,0,0,0]), expenseColor, expenseGradient),
+          makeDataset("Profit", pick("monthly_profit", [0,0,0,0,0,0,0,0,0,0,0,0]), profitColor, profitGradient),
+        ],
       },
-
-      {
-        label: "Expenses",
-        data: [5,6,5,5,7,8,6],
-        backgroundColor: (context) =>
-        createBarGradient(
-          context,
-          "#f91511",
-          "#fcc670"
-        ),
-        borderRadius: 4,
-        // barThickness: 8
+      quarterly: {
+        labels: pick("quarterly_labels", ["Q1","Q2","Q3","Q4"]),
+        datasets: [
+          makeDataset("Sales", pick("quarterly_sales", [0,0,0,0]), salesColor, salesGradient),
+          makeDataset("Purchase", pick("quarterly_purchase", [0,0,0,0]), purchaseColor, purchaseGradient),
+          makeDataset("Expenses", pick("quarterly_expenses", [0,0,0,0]), expenseColor, expenseGradient),
+          makeDataset("Profit", pick("quarterly_profit", [0,0,0,0]), profitColor, profitGradient),
+        ],
       },
-
-      {
-        label: "Profit",
-        data: [4,5,4,4,6,6,5],
-        backgroundColor: (context) =>
-        createBarGradient(
-          context,
-          "#05571197",
-          "#80f4a1"
-        ),
-        borderRadius: 4,
-        // barThickness: 8
-      }
-
-    ]
-
-  },
-
-  monthly: {
-
-    labels: [
-      "Jan","Feb","Mar","Apr",
-      "May","Jun","Jul","Aug",
-      "Sep","Oct","Nov","Dec"
-    ],
-
-    datasets: [
-
-      {
-        label: "Sales",
-        data: [12,15,13,14,18,22,17,16,20,19,18,21],
-        backgroundColor: (context) =>
-          createBarGradient(
-            context,
-            "#084ee5",
-            "#a6ceff"
-          ),
-        borderRadius: 4,
-        // barThickness: 8
+      yearly: {
+        labels: pick("yearly_labels", ["2022","2023","2024","2025"]),
+        datasets: [
+          makeDataset("Sales", pick("yearly_sales", [0,0,0,0]), salesColor, salesGradient),
+          makeDataset("Purchase", pick("yearly_purchase", [0,0,0,0]), purchaseColor, purchaseGradient),
+          makeDataset("Expenses", pick("yearly_expenses", [0,0,0,0]), expenseColor, expenseGradient),
+          makeDataset("Profit", pick("yearly_profit", [0,0,0,0]), profitColor, profitGradient),
+        ],
       },
-
-      {
-        label: "Purchase",
-        data: [8,10,9,8,11,13,9,10,12,11,10,12],
-        backgroundColor: (context) =>
-        createBarGradient(
-          context,
-          "#032a34",
-          "#4de4f8"
-        ),
-        borderRadius: 4,
-        // barThickness: 8
-      },
-
-      {
-        label: "Expenses",
-        data: [5,6,5,5,7,8,6,6,7,7,6,7],
-        backgroundColor: (context) =>
-        createBarGradient(
-          context,
-          "#f91511",
-          "#fcc670"
-        ),
-        borderRadius: 4,
-        // barThickness: 8
-      },
-
-      {
-        label: "Profit",
-        data: [4,5,4,4,6,6,5,5,6,6,5,6],
-        backgroundColor: (context) =>
-        createBarGradient(
-          context,
-          "#05571197",
-          "#80f4a1"
-        ),
-        borderRadius: 4,
-        // barThickness: 8
-      }
-
-    ]
-
-  },
-
-  quarterly: {
-
-    labels: [
-      "Q1","Q2","Q3","Q4"
-    ],
-
-    datasets: [
-
-      {
-        label: "Sales",
-        data: [19,23,19,17],
-        backgroundColor: (context) =>
-          createBarGradient(
-            context,
-            "#084ee5",
-            "#a6ceff"
-          ),
-        borderRadius: 4,
-        // barThickness: 8
-      },
-
-      {
-        label: "Purchase",
-        data: [20,13,24,23],
-        backgroundColor: (context) =>
-        createBarGradient(
-          context,
-          "#032a34",
-          "#4de4f8"
-        ),
-        borderRadius: 4,
-        // barThickness: 8
-      },
-
-      {
-        label: "Expenses",
-        data: [20,12,15,18],
-        backgroundColor: (context) =>
-        createBarGradient(
-          context,
-          "#f91511",
-          "#fcc670"
-        ),
-        borderRadius: 4,
-        // barThickness: 8
-      },
-
-      {
-        label: "Profit",
-        data: [18,22,20,24],
-        backgroundColor: (context) =>
-        createBarGradient(
-          context,
-          "#05571197",
-          "#80f4a1"
-        ),
-        borderRadius: 4,
-        // barThickness: 8
-      }
-
-    ]
-
-  },
-
-  yearly: {
-
-    labels: [
-      "2022",
-      "2023",
-      "2024",
-      "2025"
-    ],
-
-    datasets: [
-
-      {
-        label: "Sales",
-        data: [18,22,22,23],
-        backgroundColor: (context) =>
-          createBarGradient(
-            context,
-            "#084ee5",
-            "#a6ceff"
-          ),
-        borderRadius: 4,
-        // barThickness: 8
-      },
-
-      {
-        label: "Purchase",
-        data: [12,15,19,21],
-        backgroundColor: (context) =>
-        createBarGradient(
-          context,
-          "#032a34",
-          "#4de4f8"
-        ),
-        borderRadius: 4,
-        // barThickness: 8
-      },
-
-      {
-        label: "Expenses",
-        data: [10,22,12,14],
-        backgroundColor: (context) =>
-        createBarGradient(
-          context,
-          "#f91511",
-          "#fcc670"
-        ),
-        borderRadius: 4,
-        // barThickness: 8
-      },
-
-      {
-        label: "Profit",
-        data: [20,22,20,20],
-        backgroundColor: (context) =>
-        createBarGradient(
-          context,
-          "#05571197",
-          "#80f4a1"
-        ),
-        borderRadius: 4,
-        // barThickness: 8
-      }
-
-    ]
-
+    };
   }
 
-};
+  return {
+    daily: {
+      labels: ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],
+      datasets: [
+        makeDataset("Sales", [0,0,0,0,0,0,0], salesColor, salesGradient),
+        makeDataset("Purchase", [0,0,0,0,0,0,0], purchaseColor, purchaseGradient),
+        makeDataset("Expenses", [0,0,0,0,0,0,0], expenseColor, expenseGradient),
+        makeDataset("Profit", [0,0,0,0,0,0,0], profitColor, profitGradient),
+      ],
+    },
+    monthly: {
+      labels: ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
+      datasets: [
+        makeDataset("Sales", [0,0,0,0,0,0,0,0,0,0,0,0], salesColor, salesGradient),
+        makeDataset("Purchase", [0,0,0,0,0,0,0,0,0,0,0,0], purchaseColor, purchaseGradient),
+        makeDataset("Expenses", [0,0,0,0,0,0,0,0,0,0,0,0], expenseColor, expenseGradient),
+        makeDataset("Profit", [0,0,0,0,0,0,0,0,0,0,0,0], profitColor, profitGradient),
+      ],
+    },
+    quarterly: {
+      labels: ["Q1","Q2","Q3","Q4"],
+      datasets: [
+        makeDataset("Sales", [0,0,0,0], salesColor, salesGradient),
+        makeDataset("Purchase", [0,0,0,0], purchaseColor, purchaseGradient),
+        makeDataset("Expenses", [0,0,0,0], expenseColor, expenseGradient),
+        makeDataset("Profit", [0,0,0,0], profitColor, profitGradient),
+      ],
+    },
+    yearly: {
+      labels: ["2022","2023","2024","2025"],
+      datasets: [
+        makeDataset("Sales", [0,0,0,0], salesColor, salesGradient),
+        makeDataset("Purchase", [0,0,0,0], purchaseColor, purchaseGradient),
+        makeDataset("Expenses", [0,0,0,0], expenseColor, expenseGradient),
+        makeDataset("Profit", [0,0,0,0], profitColor, profitGradient),
+      ],
+    },
+  };
+}, [chartRaw]);
 const chartOptions = {
   responsive: true,
   datasets: {
@@ -1511,23 +839,23 @@ const chartOptions = {
                   </td>
 
                   <td className="output-value">
-                    5,00,000
+                    {gstData.netOutput.igst}
                   </td>
 
                   <td className="output-value">
-                    3,80,000
+                    {gstData.netOutput.cgst}
                   </td>
 
                   <td className="output-value">
-                    3,80,000
+                    {gstData.netOutput.sgst}
                   </td>
 
                   <td className="output-value">
-                    30,000
+                    {gstData.netOutput.cess}
                   </td>
 
                   <td className="total-output">
-                    12,90,000
+                    {gstData.netOutput.total}
                   </td>
 
                 </tr>
@@ -1539,19 +867,19 @@ const chartOptions = {
                     Less Inputs
                   </td>
                   <td className="input-value">
-                    6,00,000
+                    {gstData.lessInput.igst}
                   </td>
                   <td className="input-value">
-                    4,00,000
+                    {gstData.lessInput.cgst}
                   </td>
                   <td className="input-value">
-                    4,00,000
+                    {gstData.lessInput.sgst}
                   </td>
                   <td className="input-value">
-                    10,000
+                    {gstData.lessInput.cess}
                   </td>
                   <td className="total-input">
-                    14,10,000
+                    {gstData.lessInput.total}
                   </td>
                 </tr>
                 {/* ITC PAYABLE */}
@@ -1567,23 +895,20 @@ const chartOptions = {
                       Payable
                     </span>
                   </td>
-                  {/* NEGATIVE */}
-                  <td className="negative-cell">
-                    -1,00,000
+                  <td className={parseFloat(gstData.itcPayable.igst) < 0 ? "negative-cell" : "positive-cell"}>
+                    {gstData.itcPayable.igst}
                   </td>
-                  <td className="negative-cell">
-                    -20,000
+                  <td className={parseFloat(gstData.itcPayable.cgst) < 0 ? "negative-cell" : "positive-cell"}>
+                    {gstData.itcPayable.cgst}
                   </td>
-                  <td className="negative-cell">
-                    -20,000
+                  <td className={parseFloat(gstData.itcPayable.sgst) < 0 ? "negative-cell" : "positive-cell"}>
+                    {gstData.itcPayable.sgst}
                   </td>
-                  {/* POSITIVE */}
-                  <td className="positive-cell">
-                    20,000
+                  <td className={parseFloat(gstData.itcPayable.cess) < 0 ? "negative-cell" : "positive-cell"}>
+                    {gstData.itcPayable.cess}
                   </td>
-                  {/* TOTAL */}
-                  <td className="negative-total">
-                    -1,20,000
+                  <td className={parseFloat(gstData.itcPayable.total) < 0 ? "negative-total" : "positive-cell"}>
+                    {gstData.itcPayable.total}
                   </td>
                 </tr>
               </tbody>
@@ -1603,12 +928,12 @@ const chartOptions = {
                 <div className="card-status-row">
                   <span >Generated </span>
                    <span className="separator">:</span>
-                  <span className="value">125</span>
+                  <span className="value">{ewbStatus.generated}</span>
                 </div>
                 <div className="card-status-row">
                   <span >Sales </span>
                    <span className="separator">:</span>
-                  <span className="value">2.11 Cr.</span>
+                  <span className="value">{ewbStatus.sales}</span>
                 </div>
               </div>
             </div>
@@ -1623,19 +948,19 @@ const chartOptions = {
                 <div className="status-row">
                   <span>Generated</span>
                   <span className="separator">:</span>
-                  <span className="value">325</span>
+                  <span className="value">{einvoiceStatus.generated}</span>
                 </div>
 
                 <div className="status-row">
                   <span>Sales</span>
                   <span className="separator">:</span>
-                  <span className="value">2.07 Cr.</span>
+                  <span className="value">{einvoiceStatus.sales}</span>
                 </div>
 
                 <div className="status-row">
                   <span>Pending </span>
                   <span className="separator">:</span>
-                  <span className="pending-value">30</span>
+                  <span className="pending-value">{einvoiceStatus.pending}</span>
                 </div>
               </div>
             </div>
@@ -1705,10 +1030,10 @@ const chartOptions = {
                     Highest Sales
                   </p>
                   <h4>
-                    ₹4.45 Cr
+                    ₹{trendStats.highestSales}
                   </h4>
                   <span>
-                    in December
+                    {trendStats.highestSalesMonth ? `in ${trendStats.highestSalesMonth}` : "—"}
                   </span>
                 </div>
               </div>
@@ -1722,10 +1047,10 @@ const chartOptions = {
                     Lowest Sales
                   </p>
                   <h4>
-                    ₹2.45 Cr
+                    ₹{trendStats.lowestSales}
                   </h4>
                   <span>
-                    in January
+                    {trendStats.lowestSalesMonth ? `in ${trendStats.lowestSalesMonth}` : "—"}
                   </span>
                 </div>
               </div>
@@ -1739,7 +1064,7 @@ const chartOptions = {
                     Avg. Monthly Sales
                   </p>
                   <h4>
-                    ₹3.12 Cr
+                    ₹{trendStats.avgMonthlySales}
                   </h4>
                   <span>
                     12 Months Avg.
@@ -1756,7 +1081,7 @@ const chartOptions = {
                     Avg. Profit Margin
                   </p>
                   <h4>
-                    24.82%
+                    {trendStats.avgProfitMargin}
                   </h4>
                   <span>
                     12 Months Avg.
@@ -1791,53 +1116,27 @@ const chartOptions = {
 
                 <tbody>
 
-                  <tr>
-                    <td>ABCK Company</td>
-                    <td>5,10,320</td>
-                    <td>122</td>
-                    <td>
-                      <div className="whatsapp-icon">
-                        <i className="ri-whatsapp-line"></i>
-                      </div>
-                    </td>
-                    <td>
-                      <span className="voucher receipt">
-                        Receipt Voucher
-                      </span>
-                    </td>
-                  </tr>
-
-                  <tr>
-                    <td>Laviza Textile</td>
-                    <td>3,20,580</td>
-                    <td>93</td>
-                    <td>
-                      <div className="whatsapp-icon">
-                        <i className="ri-whatsapp-line"></i>
-                      </div>
-                    </td>
-                    <td>
-                      <span className="voucher receipt">
-                        Receipt Voucher
-                      </span>
-                    </td>
-                  </tr>
-
-                  <tr>
-                    <td>Mathur Industries</td>
-                    <td>8,25,330</td>
-                    <td>65</td>
-                    <td>
-                      <div className="whatsapp-icon">
-                        <i className="ri-whatsapp-line"></i>
-                      </div>
-                    </td>
-                    <td>
-                      <span className="voucher receipt">
-                        Receipt Voucher
-                      </span>
-                    </td>
-                  </tr>
+                  {pendingReceipts.length > 0 ? pendingReceipts.map((item, idx) => (
+                    <tr key={idx}>
+                      <td>{item.party || "—"}</td>
+                      <td>{item.amount || "—"}</td>
+                      <td>{item.due_days || "—"}</td>
+                      <td>
+                        <div className="whatsapp-icon">
+                          <i className="ri-whatsapp-line"></i>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="voucher receipt">
+                          Receipt Voucher
+                        </span>
+                      </td>
+                    </tr>
+                  )) : (
+                    <tr>
+                      <td colSpan="5" style={{ textAlign: "center", color: "#94a3b8" }}>No pending receipts</td>
+                    </tr>
+                  )}
 
                 </tbody>
 
@@ -1866,38 +1165,22 @@ const chartOptions = {
 
                 <tbody>
 
-                  <tr>
-                    <td>ABCK Company</td>
-                    <td>5,10,320</td>
-                    <td>122</td>
-                     <td>
-                      <span className="voucher payment">
-                        Payment Voucher
-                      </span>
-                    </td>
-                  </tr>
-
-                  <tr>
-                    <td>Laviza Textile</td>
-                    <td>3,20,580</td>
-                    <td>78</td>
-                     <td>
-                      <span className="voucher payment">
-                        Payment Voucher
-                      </span>
-                    </td>
-                  </tr>
-
-                  <tr>
-                    <td>Mathur Industries</td>
-                    <td>8,25,330</td>
-                    <td>98</td>
-                     <td>
-                      <span className="voucher payment">
-                        Payment Voucher
-                      </span>
-                    </td>
-                  </tr>
+                  {pendingPayments.length > 0 ? pendingPayments.map((item, idx) => (
+                    <tr key={idx}>
+                      <td>{item.party || "—"}</td>
+                      <td>{item.amount || "—"}</td>
+                      <td>{item.due_days || "—"}</td>
+                       <td>
+                        <span className="voucher payment">
+                          Payment Voucher
+                        </span>
+                      </td>
+                    </tr>
+                  )) : (
+                    <tr>
+                      <td colSpan="4" style={{ textAlign: "center", color: "#94a3b8" }}>No pending payments</td>
+                    </tr>
+                  )}
 
                 </tbody>
 
@@ -1936,20 +1219,20 @@ const chartOptions = {
 
             <tbody>
 
-              {(recentEntries.length > 0 ? recentEntries : [
-                { date: "15-02-26", party: "Bismi Enterprises", voucherType: "Payment", voucherNo: "Pau-01", amountCr: "80,500", amountDr: "" },
-                { date: "15-02-26", party: "Sharon Traders", voucherType: "Receipt", voucherNo: "Rec-01", amountCr: "", amountDr: "1,00,000" },
-                { date: "15-02-26", party: "ABC Traders", voucherType: "Sales", voucherNo: "Tax/2025-26/001", amountCr: "5,10,320", amountDr: "" },
-              ]).map((entry, i) => (
+              {recentEntries.length > 0 ? recentEntries.map((entry, i) => (
                 <tr key={i}>
                   <td>{entry.date}</td>
                   <td>{entry.party}</td>
                   <td>{entry.voucherType}</td>
                   <td>{entry.voucherNo}</td>
-                  <td>{entry.amountCr || entry.amount_cr || ""}</td>
-                  <td>{entry.amountDr || entry.amount_dr || ""}</td>
+                  <td>{entry.amountCr}</td>
+                  <td>{entry.amountDr}</td>
                 </tr>
-              ))}
+              )) : (
+                <tr>
+                  <td colSpan="6" style={{ textAlign: "center", color: "#94a3b8" }}>No entries found</td>
+                </tr>
+              )}
 
             </tbody>
 

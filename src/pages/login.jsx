@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { loginUser, registerUser } from "../api/auth";
+import { loginUser, registerUser, sendOtp } from "../api/auth";
 import taxImage from "../assets/logo_app.jpeg";
 import "../styles/login.css";
 
@@ -51,46 +51,33 @@ export default function Login() {
     }
   };
 
- const handleSendOtp = async () => {
-  if (!email || !email.includes("@")) {
-    alert("Please enter a valid email address.");
-    return;
-  }
-
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  setGeneratedOtp(otp);
-  setLoading(true);
-
-  try {
-    // Yeh line sabse important hai – full backend URL use karo
-    const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
-
-    const res = await fetch(`${API_URL}/send-otp`, {   // ← /send-otp add kiya + full URL
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, otp }),
-    });
-
-    if (!res.ok) {
-      throw new Error(`HTTP error! Status: ${res.status}`);
+  const handleSendOtp = async () => {
+    if (!email || !email.includes("@")) {
+      alert("Please enter a valid email address.");
+      return;
     }
 
-    const data = await res.json();
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    setGeneratedOtp(otp);
+    setLoading(true);
 
-    if (data.success) {
-      setOtpSent(true);
-      setShowOtpSection(true);
-      alert("OTP sent successfully! Check your email.");
-    } else {
-      alert("Failed to send OTP: " + (data.message || "Unknown error"));
+    try {
+      const res = await sendOtp(email, otp);
+      if (res.data.success) {
+        setOtpSent(true);
+        setShowOtpSection(true);
+        alert("OTP sent successfully! Check your email.");
+      } else {
+        alert("Failed to send OTP: " + (res.data.message || "Unknown error"));
+      }
+    } catch (err) {
+      console.error("OTP Send Error:", err);
+      const msg = err.response?.data?.message || err.message;
+      alert("Failed to send OTP: " + msg);
+    } finally {
+      setLoading(false);
     }
-  } catch (err) {
-    console.error("OTP Send Error:", err);
-    alert("Server error. Make sure backend is running on port 5000.");
-  } finally {
-    setLoading(false);
-  }
-};
+  };
   const handleVerifyOtp = async (e) => {
     e.preventDefault();
     setSignupError("");
@@ -113,10 +100,10 @@ export default function Login() {
 
     try {
       const res = await registerUser({
-        username: email,
         email,
         password,
         password2: confirmPassword,
+        otp: enteredOtp,
         first_name: name.split(" ")[0] || name,
         last_name: name.split(" ").slice(1).join(" ") || "",
       });
@@ -126,11 +113,21 @@ export default function Login() {
       localStorage.setItem("user", JSON.stringify({ name, email, role: "New User" }));
       navigate("/select-company");
     } catch (err) {
-      const detail = err.response?.data?.detail || err.message;
-      if (typeof detail === "object") {
-        setSignupError(Object.values(detail).flat().join(". "));
-      } else {
+      const data = err.response?.data || {};
+      const detail = data.detail || err.message;
+      if (typeof detail === "string") {
         setSignupError(detail);
+      } else if (typeof data === "object") {
+        const msgs = Object.entries(data)
+          .map(([field, errors]) => {
+            const list = Array.isArray(errors) ? errors : [errors];
+            return list.map(e => `${field}: ${e}`).join(". ");
+          })
+          .filter(Boolean)
+          .join(". ");
+        setSignupError(msgs || "Registration failed.");
+      } else {
+        setSignupError(detail || "Registration failed.");
       }
     }
   };

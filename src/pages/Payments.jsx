@@ -4,33 +4,7 @@ import "@fortawesome/fontawesome-free/css/all.min.css";
 import { loadData, saveData } from "../api/connector";
 import * as services from "../api/services";
 
-const firms = ["Firm A", "Firm B", "Firm C", "Firm D"];
 
-const generateTransactions = () => {
-  const parties = [
-    "Mohan Traders", "Ravi Enterprises", "Sharma & Co", "Gupta Suppliers",
-    "Verma Traders", "A1 Wholesale", "Modern Store", "Global Imports",
-    "Raj Brothers", "Om Suppliers", "City Traders", "Krishna Mart",
-    "Star Wholesale", "Sunrise Traders", "Prime Supplies", "Royal Enterprises",
-    "Nikhil Stores", "Elite Traders", "Metro Wholesale", "National Suppliers"
-  ];
-
-  return parties.map((p, i) => {
-    const amount = Math.floor(Math.random() * 5000) + 500;
-    const paid = i % 2 === 0;
-
-    return {
-      id: i + 1,
-      date: `2026-${String((i % 12) + 1).padStart(2, "0")}-10`,
-      invoice: `TRX-${String(i + 1).padStart(3, "0")}`,
-      party: p,
-      firm: firms[i % firms.length],
-      paymentType: paid ? "Cash" : "Cheque",
-      amount,
-      balance: paid ? 0 : amount
-    };
-  });
-};
 
 
 export default function Payments() {
@@ -222,9 +196,7 @@ export default function Payments() {
           <select value={firm}
             onChange={e => setFirm(e.target.value)}>
             <option>All Firms</option>
-            {firms.map((f, i) => (
-              <option key={i}>{f}</option>
-            ))}
+            <option>Default</option>
           </select>
 
           <input
@@ -325,9 +297,7 @@ export default function Payments() {
             <input type="text" name="party" placeholder="Party Name" required />
 
             <select name="firm" required>
-              {firms.map((f, i) => (
-                <option key={i}>{f}</option>
-              ))}
+              <option>Default</option>
             </select>
 
             <select name="paymentType">

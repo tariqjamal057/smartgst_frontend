@@ -67,7 +67,7 @@ export default function App() {
          <Route path="/" element={<Login/>} />
          <Route path="/login" element={<Login/>} />
          <Route path="/select-company" element={<SelectCompany />} />
-        <Route element={<Layout />}>
+         <Route element={<Layout />}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/customers" element={<Customers />} />
           <Route path="/vendors" element={<Vendors />} />
@@ -123,11 +123,11 @@ export default function App() {
         
 
 
-         
           
-        </Route>
-        <Route path="/HomeAddSales" element={<HomeAddSales />} />
-        <Route path="/HomeAddPurchase" element={<HomeAddPurchase />} />
+           
+          </Route>
+          <Route path="/HomeAddSales" element={<HomeAddSales />} />
+          <Route path="/HomeAddPurchase" element={<HomeAddPurchase />} />
       </Routes>
     </BrowserRouter>
   );

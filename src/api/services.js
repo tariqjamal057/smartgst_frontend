@@ -10,205 +10,245 @@ const buildParams = (params) => {
 
 // ─── Financial Year ───
 export const getFinancialYears = (params) =>
-  api.get("/financial-years/", { params: buildParams(params) });
-export const createFinancialYear = (data) => api.post("/financial-years/", data);
-export const updateFinancialYear = (id, data) => api.patch(`/financial-years/${id}/`, data);
+  api.get("/accounting/financial-years/", { params: buildParams(params) });
+export const createFinancialYear = (data) => api.post("/accounting/financial-years/", data);
+export const updateFinancialYear = (id, data) => api.patch(`/accounting/financial-years/${id}/`, data);
 
 // ─── Chart of Accounts ───
 export const getAccounts = (params) =>
-  api.get("/accounts/", { params: buildParams(params) });
-export const getAccount = (id) => api.get(`/accounts/${id}/`);
-export const createAccount = (data) => api.post("/accounts/", data);
-export const updateAccount = (id, data) => api.patch(`/accounts/${id}/`, data);
-export const deleteAccount = (id) => api.delete(`/accounts/${id}/`);
+  api.get("/accounting/accounts/", { params: buildParams(params) });
+export const getAccount = (id) => api.get(`/accounting/accounts/${id}/`);
+export const createAccount = (data) => api.post("/accounting/accounts/", data);
+export const updateAccount = (id, data) => api.patch(`/accounting/accounts/${id}/`, data);
+export const deleteAccount = (id) => api.delete(`/accounting/accounts/${id}/`);
 
 // ─── Party ───
 export const getParties = (params) =>
-  api.get("/parties/", { params: buildParams(params) });
-export const getParty = (id) => api.get(`/parties/${id}/`);
-export const createParty = (data) => api.post("/parties/", data);
-export const updateParty = (id, data) => api.patch(`/parties/${id}/`, data);
-export const deleteParty = (id) => api.delete(`/parties/${id}/`);
+  api.get("/accounting/parties/", { params: buildParams(params) });
+export const getParty = (id) => api.get(`/accounting/parties/${id}/`);
+export const createParty = (data) => api.post("/accounting/parties/", data);
+export const updateParty = (id, data) => api.patch(`/accounting/parties/${id}/`, data);
+export const deleteParty = (id) => api.delete(`/accounting/parties/${id}/`);
 
 // ─── Item Categories ───
 export const getItemCategories = (params) =>
-  api.get("/item-categories/", { params: buildParams(params) });
-export const createItemCategory = (data) => api.post("/item-categories/", data);
-export const updateItemCategory = (id, data) => api.patch(`/item-categories/${id}/`, data);
-export const deleteItemCategory = (id) => api.delete(`/item-categories/${id}/`);
+  api.get("/accounting/item-categories/", { params: buildParams(params) });
+export const createItemCategory = (data) => api.post("/accounting/item-categories/", data);
+export const updateItemCategory = (id, data) => api.patch(`/accounting/item-categories/${id}/`, data);
+export const deleteItemCategory = (id) => api.delete(`/accounting/item-categories/${id}/`);
 
 // ─── Items ───
 export const getItems = (params) =>
-  api.get("/items/", { params: buildParams(params) });
-export const getItem = (id) => api.get(`/items/${id}/`);
-export const createItem = (data) => api.post("/items/", data);
-export const updateItem = (id, data) => api.patch(`/items/${id}/`, data);
-export const deleteItem = (id) => api.delete(`/items/${id}/`);
+  api.get("/accounting/items/", { params: buildParams(params) });
+export const getItem = (id) => api.get(`/accounting/items/${id}/`);
+export const createItem = (data) => api.post("/accounting/items/", data);
+export const updateItem = (id, data) => api.patch(`/accounting/items/${id}/`, data);
+export const deleteItem = (id) => api.delete(`/accounting/items/${id}/`);
 
 // ─── Invoice Settings ───
 export const getInvoiceSettings = (params) =>
-  api.get("/invoice-settings/", { params: buildParams(params) });
-export const createInvoiceSetting = (data) => api.post("/invoice-settings/", data);
-export const updateInvoiceSetting = (id, data) => api.patch(`/invoice-settings/${id}/`, data);
+  api.get("/accounting/invoice-settings/", { params: buildParams(params) });
+export const createInvoiceSetting = (data) => api.post("/accounting/invoice-settings/", data);
+export const updateInvoiceSetting = (id, data) => api.patch(`/accounting/invoice-settings/${id}/`, data);
 
 // ─── Sales Invoices ───
 export const getSalesInvoices = (params) =>
-  api.get("/sales-invoices/", { params: buildParams(params) });
-export const getSalesInvoice = (id) => api.get(`/sales-invoices/${id}/`);
-export const createSalesInvoice = (data) => api.post("/sales-invoices/", data);
-export const updateSalesInvoice = (id, data) => api.patch(`/sales-invoices/${id}/`, data);
-export const deleteSalesInvoice = (id) => api.delete(`/sales-invoices/${id}/`);
-export const postSalesInvoice = (id) => api.post(`/sales-invoices/${id}/post/`);
+  api.get("/accounting/sales-invoices/", { params: buildParams(params) });
+export const getSalesInvoice = (id) => api.get(`/accounting/sales-invoices/${id}/`);
+export const createSalesInvoice = (data) => api.post("/accounting/sales-invoices/", data);
+export const updateSalesInvoice = (id, data) => api.patch(`/accounting/sales-invoices/${id}/`, data);
+export const deleteSalesInvoice = (id) => api.delete(`/accounting/sales-invoices/${id}/`);
+export const postSalesInvoice = (id) => api.post(`/accounting/sales-invoices/${id}/post/`);
 
 // ─── Purchase Bills ───
 export const getPurchaseBills = (params) =>
-  api.get("/purchase-bills/", { params: buildParams(params) });
-export const getPurchaseBill = (id) => api.get(`/purchase-bills/${id}/`);
-export const createPurchaseBill = (data) => api.post("/purchase-bills/", data);
-export const updatePurchaseBill = (id, data) => api.patch(`/purchase-bills/${id}/`, data);
-export const deletePurchaseBill = (id) => api.delete(`/purchase-bills/${id}/`);
-export const postPurchaseBill = (id) => api.post(`/purchase-bills/${id}/post/`);
+  api.get("/accounting/purchase-bills/", { params: buildParams(params) });
+export const getPurchaseBill = (id) => api.get(`/accounting/purchase-bills/${id}/`);
+export const createPurchaseBill = (data) => api.post("/accounting/purchase-bills/", data);
+export const updatePurchaseBill = (id, data) => api.patch(`/accounting/purchase-bills/${id}/`, data);
+export const deletePurchaseBill = (id) => api.delete(`/accounting/purchase-bills/${id}/`);
+export const postPurchaseBill = (id) => api.post(`/accounting/purchase-bills/${id}/post/`);
 
 // ─── Receipt Vouchers ───
 export const getReceiptVouchers = (params) =>
-  api.get("/receipt-vouchers/", { params: buildParams(params) });
-export const getReceiptVoucher = (id) => api.get(`/receipt-vouchers/${id}/`);
-export const createReceiptVoucher = (data) => api.post("/receipt-vouchers/", data);
-export const updateReceiptVoucher = (id, data) => api.patch(`/receipt-vouchers/${id}/`, data);
-export const deleteReceiptVoucher = (id) => api.delete(`/receipt-vouchers/${id}/`);
-export const postReceiptVoucher = (id) => api.post(`/receipt-vouchers/${id}/post/`);
+  api.get("/accounting/receipt-vouchers/", { params: buildParams(params) });
+export const getReceiptVoucher = (id) => api.get(`/accounting/receipt-vouchers/${id}/`);
+export const createReceiptVoucher = (data) => api.post("/accounting/receipt-vouchers/", data);
+export const updateReceiptVoucher = (id, data) => api.patch(`/accounting/receipt-vouchers/${id}/`, data);
+export const deleteReceiptVoucher = (id) => api.delete(`/accounting/receipt-vouchers/${id}/`);
+export const postReceiptVoucher = (id) => api.post(`/accounting/receipt-vouchers/${id}/post/`);
 
 // ─── Payment Vouchers ───
 export const getPaymentVouchers = (params) =>
-  api.get("/payment-vouchers/", { params: buildParams(params) });
-export const getPaymentVoucher = (id) => api.get(`/payment-vouchers/${id}/`);
-export const createPaymentVoucher = (data) => api.post("/payment-vouchers/", data);
-export const updatePaymentVoucher = (id, data) => api.patch(`/payment-vouchers/${id}/`, data);
-export const deletePaymentVoucher = (id) => api.delete(`/payment-vouchers/${id}/`);
-export const postPaymentVoucher = (id) => api.post(`/payment-vouchers/${id}/post/`);
+  api.get("/accounting/payment-vouchers/", { params: buildParams(params) });
+export const getPaymentVoucher = (id) => api.get(`/accounting/payment-vouchers/${id}/`);
+export const createPaymentVoucher = (data) => api.post("/accounting/payment-vouchers/", data);
+export const updatePaymentVoucher = (id, data) => api.patch(`/accounting/payment-vouchers/${id}/`, data);
+export const deletePaymentVoucher = (id) => api.delete(`/accounting/payment-vouchers/${id}/`);
+export const postPaymentVoucher = (id) => api.post(`/accounting/payment-vouchers/${id}/post/`);
 
 // ─── Journal Vouchers ───
 export const getJournalVouchers = (params) =>
-  api.get("/journal-vouchers/", { params: buildParams(params) });
-export const getJournalVoucher = (id) => api.get(`/journal-vouchers/${id}/`);
-export const createJournalVoucher = (data) => api.post("/journal-vouchers/", data);
-export const updateJournalVoucher = (id, data) => api.patch(`/journal-vouchers/${id}/`, data);
-export const deleteJournalVoucher = (id) => api.delete(`/journal-vouchers/${id}/`);
-export const postJournalVoucher = (id) => api.post(`/journal-vouchers/${id}/post/`);
+  api.get("/accounting/journal-vouchers/", { params: buildParams(params) });
+export const getJournalVoucher = (id) => api.get(`/accounting/journal-vouchers/${id}/`);
+export const createJournalVoucher = (data) => api.post("/accounting/journal-vouchers/", data);
+export const updateJournalVoucher = (id, data) => api.patch(`/accounting/journal-vouchers/${id}/`, data);
+export const deleteJournalVoucher = (id) => api.delete(`/accounting/journal-vouchers/${id}/`);
+export const postJournalVoucher = (id) => api.post(`/accounting/journal-vouchers/${id}/post/`);
 
 // ─── Contra Vouchers ───
 export const getContraVouchers = (params) =>
-  api.get("/contra-vouchers/", { params: buildParams(params) });
-export const getContraVoucher = (id) => api.get(`/contra-vouchers/${id}/`);
-export const createContraVoucher = (data) => api.post("/contra-vouchers/", data);
-export const updateContraVoucher = (id, data) => api.patch(`/contra-vouchers/${id}/`, data);
-export const deleteContraVoucher = (id) => api.delete(`/contra-vouchers/${id}/`);
-export const postContraVoucher = (id) => api.post(`/contra-vouchers/${id}/post/`);
+  api.get("/accounting/contra-vouchers/", { params: buildParams(params) });
+export const getContraVoucher = (id) => api.get(`/accounting/contra-vouchers/${id}/`);
+export const createContraVoucher = (data) => api.post("/accounting/contra-vouchers/", data);
+export const updateContraVoucher = (id, data) => api.patch(`/accounting/contra-vouchers/${id}/`, data);
+export const deleteContraVoucher = (id) => api.delete(`/accounting/contra-vouchers/${id}/`);
+export const postContraVoucher = (id) => api.post(`/accounting/contra-vouchers/${id}/post/`);
 
 // ─── Credit Notes ───
 export const getCreditNotes = (params) =>
-  api.get("/credit-notes/", { params: buildParams(params) });
-export const getCreditNote = (id) => api.get(`/credit-notes/${id}/`);
-export const createCreditNote = (data) => api.post("/credit-notes/", data);
-export const updateCreditNote = (id, data) => api.patch(`/credit-notes/${id}/`, data);
-export const deleteCreditNote = (id) => api.delete(`/credit-notes/${id}/`);
-export const postCreditNote = (id) => api.post(`/credit-notes/${id}/post/`);
+  api.get("/accounting/credit-notes/", { params: buildParams(params) });
+export const getCreditNote = (id) => api.get(`/accounting/credit-notes/${id}/`);
+export const createCreditNote = (data) => api.post("/accounting/credit-notes/", data);
+export const updateCreditNote = (id, data) => api.patch(`/accounting/credit-notes/${id}/`, data);
+export const deleteCreditNote = (id) => api.delete(`/accounting/credit-notes/${id}/`);
+export const postCreditNote = (id) => api.post(`/accounting/credit-notes/${id}/post/`);
 
 // ─── Debit Notes ───
 export const getDebitNotes = (params) =>
-  api.get("/debit-notes/", { params: buildParams(params) });
-export const getDebitNote = (id) => api.get(`/debit-notes/${id}/`);
-export const createDebitNote = (data) => api.post("/debit-notes/", data);
-export const updateDebitNote = (id, data) => api.patch(`/debit-notes/${id}/`, data);
-export const deleteDebitNote = (id) => api.delete(`/debit-notes/${id}/`);
-export const postDebitNote = (id) => api.post(`/debit-notes/${id}/post/`);
+  api.get("/accounting/debit-notes/", { params: buildParams(params) });
+export const getDebitNote = (id) => api.get(`/accounting/debit-notes/${id}/`);
+export const createDebitNote = (data) => api.post("/accounting/debit-notes/", data);
+export const updateDebitNote = (id, data) => api.patch(`/accounting/debit-notes/${id}/`, data);
+export const deleteDebitNote = (id) => api.delete(`/accounting/debit-notes/${id}/`);
+export const postDebitNote = (id) => api.post(`/accounting/debit-notes/${id}/post/`);
 
 // ─── Sale Orders ───
 export const getSaleOrders = (params) =>
-  api.get("/sale-orders/", { params: buildParams(params) });
-export const getSaleOrder = (id) => api.get(`/sale-orders/${id}/`);
-export const createSaleOrder = (data) => api.post("/sale-orders/", data);
-export const updateSaleOrder = (id, data) => api.patch(`/sale-orders/${id}/`, data);
-export const deleteSaleOrder = (id) => api.delete(`/sale-orders/${id}/`);
+  api.get("/accounting/sale-orders/", { params: buildParams(params) });
+export const getSaleOrder = (id) => api.get(`/accounting/sale-orders/${id}/`);
+export const createSaleOrder = (data) => api.post("/accounting/sale-orders/", data);
+export const updateSaleOrder = (id, data) => api.patch(`/accounting/sale-orders/${id}/`, data);
+export const deleteSaleOrder = (id) => api.delete(`/accounting/sale-orders/${id}/`);
 
 // ─── Purchase Orders ───
 export const getPurchaseOrders = (params) =>
-  api.get("/purchase-orders/", { params: buildParams(params) });
-export const getPurchaseOrder = (id) => api.get(`/purchase-orders/${id}/`);
-export const createPurchaseOrder = (data) => api.post("/purchase-orders/", data);
-export const updatePurchaseOrder = (id, data) => api.patch(`/purchase-orders/${id}/`, data);
-export const deletePurchaseOrder = (id) => api.delete(`/purchase-orders/${id}/`);
+  api.get("/accounting/purchase-orders/", { params: buildParams(params) });
+export const getPurchaseOrder = (id) => api.get(`/accounting/purchase-orders/${id}/`);
+export const createPurchaseOrder = (data) => api.post("/accounting/purchase-orders/", data);
+export const updatePurchaseOrder = (id, data) => api.patch(`/accounting/purchase-orders/${id}/`, data);
+export const deletePurchaseOrder = (id) => api.delete(`/accounting/purchase-orders/${id}/`);
 
 // ─── Delivery Challans ───
 export const getDeliveryChallans = (params) =>
-  api.get("/delivery-challans/", { params: buildParams(params) });
-export const getDeliveryChallan = (id) => api.get(`/delivery-challans/${id}/`);
-export const createDeliveryChallan = (data) => api.post("/delivery-challans/", data);
-export const updateDeliveryChallan = (id, data) => api.patch(`/delivery-challans/${id}/`, data);
-export const deleteDeliveryChallan = (id) => api.delete(`/delivery-challans/${id}/`);
-export const markChallanDelivered = (id) => api.post(`/delivery-challans/${id}/mark_delivered/`);
+  api.get("/accounting/delivery-challans/", { params: buildParams(params) });
+export const getDeliveryChallan = (id) => api.get(`/accounting/delivery-challans/${id}/`);
+export const createDeliveryChallan = (data) => api.post("/accounting/delivery-challans/", data);
+export const updateDeliveryChallan = (id, data) => api.patch(`/accounting/delivery-challans/${id}/`, data);
+export const deleteDeliveryChallan = (id) => api.delete(`/accounting/delivery-challans/${id}/`);
+export const markChallanDelivered = (id) => api.post(`/accounting/delivery-challans/${id}/mark_delivered/`);
 
 // ─── Sale Returns ───
 export const getSaleReturns = (params) =>
-  api.get("/sale-returns/", { params: buildParams(params) });
-export const getSaleReturn = (id) => api.get(`/sale-returns/${id}/`);
-export const createSaleReturn = (data) => api.post("/sale-returns/", data);
-export const updateSaleReturn = (id, data) => api.patch(`/sale-returns/${id}/`, data);
-export const deleteSaleReturn = (id) => api.delete(`/sale-returns/${id}/`);
+  api.get("/accounting/sale-returns/", { params: buildParams(params) });
+export const getSaleReturn = (id) => api.get(`/accounting/sale-returns/${id}/`);
+export const createSaleReturn = (data) => api.post("/accounting/sale-returns/", data);
+export const updateSaleReturn = (id, data) => api.patch(`/accounting/sale-returns/${id}/`, data);
+export const deleteSaleReturn = (id) => api.delete(`/accounting/sale-returns/${id}/`);
 
 // ─── Purchase Returns ───
 export const getPurchaseReturns = (params) =>
-  api.get("/purchase-returns/", { params: buildParams(params) });
-export const getPurchaseReturn = (id) => api.get(`/purchase-returns/${id}/`);
-export const createPurchaseReturn = (data) => api.post("/purchase-returns/", data);
-export const updatePurchaseReturn = (id, data) => api.patch(`/purchase-returns/${id}/`, data);
-export const deletePurchaseReturn = (id) => api.delete(`/purchase-returns/${id}/`);
+  api.get("/accounting/purchase-returns/", { params: buildParams(params) });
+export const getPurchaseReturn = (id) => api.get(`/accounting/purchase-returns/${id}/`);
+export const createPurchaseReturn = (data) => api.post("/accounting/purchase-returns/", data);
+export const updatePurchaseReturn = (id, data) => api.patch(`/accounting/purchase-returns/${id}/`, data);
+export const deletePurchaseReturn = (id) => api.delete(`/accounting/purchase-returns/${id}/`);
 
 // ─── Transactions ───
 export const getTransactions = (params) =>
-  api.get("/transactions/", { params: buildParams(params) });
-export const createTransaction = (data) => api.post("/transactions/", data);
+  api.get("/accounting/transactions/", { params: buildParams(params) });
+export const createTransaction = (data) => api.post("/accounting/transactions/", data);
 
 // ─── Documents ───
 export const getDocuments = (params) =>
-  api.get("/documents/", { params: buildParams(params) });
+  api.get("/accounting/documents/", { params: buildParams(params) });
 export const createDocument = (formData) =>
-  api.post("/documents/", formData, {
+  api.post("/accounting/documents/", formData, {
     headers: { "Content-Type": "multipart/form-data" },
   });
-export const deleteDocument = (id) => api.delete(`/documents/${id}/`);
+export const deleteDocument = (id) => api.delete(`/accounting/documents/${id}/`);
 
 // ─── Company Settings ───
 export const getCompanySettings = (params) =>
-  api.get("/company-settings/", { params: buildParams(params) });
-export const createCompanySetting = (data) => api.post("/company-settings/", data);
-export const updateCompanySetting = (id, data) => api.patch(`/company-settings/${id}/`, data);
+  api.get("/accounting/company-settings/", { params: buildParams(params) });
+export const createCompanySetting = (data) => api.post("/accounting/company-settings/", data);
+export const updateCompanySetting = (id, data) => api.patch(`/accounting/company-settings/${id}/`, data);
 
 // ─── Bank Reconciliation ───
 export const getBankReconciliations = (params) =>
-  api.get("/bank-reconciliations/", { params: buildParams(params) });
+  api.get("/accounting/bank-reconciliations/", { params: buildParams(params) });
 export const createBankReconciliation = (data) =>
-  api.post("/bank-reconciliations/", data);
+  api.post("/accounting/bank-reconciliations/", data);
 export const updateBankReconciliation = (id, data) =>
-  api.patch(`/bank-reconciliations/${id}/`, data);
+  api.patch(`/accounting/bank-reconciliations/${id}/`, data);
 
 // ─── Ledger (read-only report data) ───
 export const getLedgerEntries = (params) =>
-  api.get("/ledger/", { params: buildParams(params) });
+  api.get("/accounting/ledger/", { params: buildParams(params) });
 
 // ─── GST Lookup ───
-export const lookupGst = (gstin) => api.get(`/gst/${gstin}/`);
+export const lookupGst = (gstin) => api.get(`/accounting/gst/${gstin}/`);
 
 // ─── Reports ───
 export const getTrialBalance = (params) =>
-  api.get("/reports/trial-balance/", { params: buildParams(params) });
+  api.get("/accounting/reports/trial-balance/", { params: buildParams(params) });
 export const getProfitLoss = (params) =>
-  api.get("/reports/profit-loss/", { params: buildParams(params) });
+  api.get("/accounting/reports/profit-loss/", { params: buildParams(params) });
 export const getBalanceSheet = (params) =>
-  api.get("/reports/balance-sheet/", { params: buildParams(params) });
+  api.get("/accounting/reports/balance-sheet/", { params: buildParams(params) });
 export const getCashFlow = (params) =>
-  api.get("/reports/cash-flow/", { params: buildParams(params) });
+  api.get("/accounting/reports/cash-flow/", { params: buildParams(params) });
+
+// ─── Summary Reports ───
+export const getSaleSummary = (params) =>
+  api.get("/accounting/reports/sale-summary/", { params: buildParams(params) });
+export const getPurchaseSummary = (params) =>
+  api.get("/accounting/reports/purchase-summary/", { params: buildParams(params) });
+export const getSaleReturnSummaryRpt = (params) =>
+  api.get("/accounting/reports/sale-return-summary/", { params: buildParams(params) });
+export const getPurchaseReturnSummaryRpt = (params) =>
+  api.get("/accounting/reports/purchase-return-summary/", { params: buildParams(params) });
+export const getSaleOrderSummaryRpt = (params) =>
+  api.get("/accounting/reports/sale-order-summary/", { params: buildParams(params) });
+export const getDeliveryChallanSummaryRpt = (params) =>
+  api.get("/accounting/reports/delivery-challan-summary/", { params: buildParams(params) });
+export const getStockSummaryRpt = (params) =>
+  api.get("/accounting/reports/stock-summary/", { params: buildParams(params) });
+export const getHSNSACRpt = (params) =>
+  api.get("/accounting/reports/hsn-sac/", { params: buildParams(params) });
+export const getCustomerVendorSummaryRpt = (params) =>
+  api.get("/accounting/reports/customer-vendor-summary/", { params: buildParams(params) });
+
+// ─── GST Reports ───
+export const getGSTR1 = (params) =>
+  api.get("/accounting/reports/gstr1/", { params: buildParams(params) });
+export const getGSTR2 = (params) =>
+  api.get("/accounting/reports/gstr2/", { params: buildParams(params) });
+export const getGSTR3B = (params) =>
+  api.get("/accounting/reports/gstr3b/", { params: buildParams(params) });
+export const getGSTR7 = (params) =>
+  api.get("/accounting/reports/gstr7/", { params: buildParams(params) });
+
+// ─── TDS / TCS Reports ───
+export const getTDSReport = (params) =>
+  api.get("/accounting/reports/tds/", { params: buildParams(params) });
+export const getTCSReport = (params) =>
+  api.get("/accounting/reports/tcs/", { params: buildParams(params) });
+
+// ─── Daybook ───
+export const getDaybook = (params) =>
+  api.get("/accounting/reports/daybook/", { params: buildParams(params) });
 
 // ─── Dashboard ───
 export const getDashboardSummary = (params) =>
-  api.get("/dashboard/summary/", { params: buildParams(params) });
+  api.get("/accounting/dashboard/summary/", { params: buildParams(params) });

@@ -1,62 +1,32 @@
 import React, { useState, useEffect } from "react";
+import * as services from "../api/services";
 // import "./App.css";s
 
 const companyState = "Gujarat";
 
 const HomeAddPurchase = () => {
 
-  /* ===============================
-     CUSTOMERS (20 with different states)
-  =============================== */
-  const customers = [
-    { id: 1, name: "Amit Traders", phone: "9876500011", state: "Gujarat" },
-    { id: 2, name: "Ravi Enterprises", phone: "9876500012", state: "Maharashtra" },
-    { id: 3, name: "Kiran Sales", phone: "9876500013", state: "Rajasthan" },
-    { id: 4, name: "Jay Distributors", phone: "9876500014", state: "Delhi" },
-    { id: 5, name: "Mahesh Store", phone: "9876500015", state: "Punjab" },
-    { id: 6, name: "Vijay Mart", phone: "9876500016", state: "Karnataka" },
-    { id: 7, name: "Suresh Agency", phone: "9876500017", state: "Tamil Nadu" },
-    { id: 8, name: "Ganesh Traders", phone: "9876500018", state: "Uttar Pradesh" },
-    { id: 9, name: "Deepak Sales", phone: "9876500019", state: "Bihar" },
-    { id: 10, name: "Shivam Mart", phone: "9876500020", state: "Madhya Pradesh" },
-    { id: 11, name: "Om Distributors", phone: "9876500021", state: "Kerala" },
-    { id: 12, name: "Royal Traders", phone: "9876500022", state: "Goa" },
-    { id: 13, name: "Prime Store", phone: "9876500023", state: "Haryana" },
-    { id: 14, name: "Modern Sales", phone: "9876500024", state: "West Bengal" },
-    { id: 15, name: "National Mart", phone: "9876500025", state: "Odisha" },
-    { id: 16, name: "Perfect Traders", phone: "9876500026", state: "Assam" },
-    { id: 17, name: "Metro Sales", phone: "9876500027", state: "Telangana" },
-    { id: 18, name: "Sunrise Traders", phone: "9876500028", state: "Jharkhand" },
-    { id: 19, name: "Global Mart", phone: "9876500029", state: "Chhattisgarh" },
-    { id: 20, name: "Future Traders", phone: "9876500030", state: "Delhi" },
-  ];
+  const [customersList, setCustomersList] = useState([]);
+  const [itemsData, setItemsData] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  /* ===============================
-     ITEMS (20 with own price)
-  =============================== */
-//   Laptop, Mouse, Keyboard, Monitor, Printer, Desk 
-  const itemsList = [
-    { id: 1, name: "Laptop", unit: "PCS", price: 45000, discount: 5, tax: 18 },
-    { id: 2, name: "Mouse", unit: "PCS", price: 500, discount: 2, tax: 18 },
-    { id: 3, name: "Keyboard", unit: "PCS", price: 1200, discount: 3, tax: 18 },
-    { id: 4, name: "Monitor", unit: "PCS", price: 15000, discount: 4, tax: 18 },
-    { id: 5, name: "Printer", unit: "PCS", price: 10000, discount: 6, tax: 18 },
-    { id: 6, name: "Desk", unit: "PCS", price: 7000, discount: 5, tax: 12 },
-    { id: 7, name: "Chair", unit: "PCS", price: 3500, discount: 5, tax: 12 },
-    { id: 8, name: "Pen Drive", unit: "PCS", price: 800, discount: 1, tax: 18 },
-    { id: 9, name: "Hard Disk", unit: "PCS", price: 4500, discount: 3, tax: 18 },
-    { id: 10, name: "Scanner", unit: "PCS", price: 8500, discount: 5, tax: 18 },
-    { id: 11, name: "Tablet", unit: "PCS", price: 20000, discount: 4, tax: 18 },
-    { id: 12, name: "Speaker", unit: "PCS", price: 2500, discount: 3, tax: 18 },
-    { id: 13, name: "Webcam", unit: "PCS", price: 1800, discount: 2, tax: 18 },
-    { id: 14, name: "Router", unit: "PCS", price: 2200, discount: 3, tax: 18 },
-    { id: 15, name: "Projector", unit: "PCS", price: 30000, discount: 5, tax: 18 },
-    { id: 16, name: "Mobile", unit: "PCS", price: 25000, discount: 5, tax: 18 },
-    { id: 17, name: "Headphones", unit: "PCS", price: 1500, discount: 2, tax: 18 },
-    { id: 18, name: "Power Bank", unit: "PCS", price: 1200, discount: 2, tax: 18 },
-    { id: 19, name: "Cable", unit: "PCS", price: 300, discount: 1, tax: 18 },
-    { id: 20, name: "SSD", unit: "PCS", price: 6000, discount: 4, tax: 18 },
-  ];
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [customersRes, itemsRes] = await Promise.all([
+          services.getParties({ party_type: "VENDOR" }),
+          services.getItems(),
+        ]);
+        setCustomersList(customersRes.data.results || customersRes.data);
+        setItemsData(itemsRes.data.results || itemsRes.data);
+      } catch (err) {
+        console.error("Failed to fetch data:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
   /* ===============================
      TAB + ROW CREATION
@@ -130,7 +100,7 @@ const HomeAddPurchase = () => {
   =============================== */
 
   const handleCustomer = (name) => {
-    const selected = customers.find(c => c.name === name);
+    const selected = customersList.find(c => c.name === name);
 
     setTabs(prev => prev.map(tab =>
       tab.id === activeTabId
@@ -151,7 +121,7 @@ const HomeAddPurchase = () => {
   =============================== */
 
   const handleItem = (rowId, name) => {
-    const item = itemsList.find(i => i.name === name);
+    const item = itemsData.find(i => i.name === name);
 
     setTabs(prev => prev.map(tab => {
       if (tab.id !== activeTabId) return tab;
@@ -237,6 +207,33 @@ const HomeAddPurchase = () => {
   /* ===============================
      Go on dashboard
   =============================== */
+
+  const handleSave = async () => {
+    try {
+      const payload = {
+        customer_name: activeTab.customer,
+        invoice_date: activeTab.invoiceDate,
+        invoice_number: activeTab.title.replace("Purchase #", ""),
+        state_of_supply: activeTab.state,
+        items: activeTab.rows.map(r => ({
+          item_name: r.item,
+          quantity: r.qty,
+          unit: r.unit,
+          price: r.price,
+          discount_percent: r.discount,
+          tax_percent: r.tax,
+          amount: r.amount,
+        })),
+        round_off: activeTab.roundOff,
+        grand_total: finalTotal,
+      };
+      await services.createPurchaseBill(payload);
+      alert("Purchase saved successfully!");
+    } catch (err) {
+      console.error("Failed to save:", err);
+      alert("Failed to save purchase");
+    }
+  };
 
   const goDashboard = () => {
     window.location.href = "/";
@@ -347,7 +344,7 @@ const HomeAddPurchase = () => {
                   onChange={(e) => handleCustomer(e.target.value)}
                 >
                   <option value="">Select</option>
-                  {customers.map(c => (
+                  {customersList.map(c => (
                     <option key={c.id}>{c.name}</option>
                   ))}
                 </select>
@@ -402,7 +399,7 @@ const HomeAddPurchase = () => {
                         onChange={(e) => handleItem(row.id, e.target.value)}
                       >
                         <option value="">Select</option>
-                        {itemsList.map(item => (
+                        {itemsData.map(item => (
                           <option key={item.id}>{item.name}</option>
                         ))}
                       </select>
@@ -488,7 +485,7 @@ const HomeAddPurchase = () => {
 
             <div>
               <button className="btn">Share</button>
-              <button className="btn primary">Save</button>
+              <button className="btn primary" onClick={handleSave}>Save</button>
             </div>
           </div>
 
