@@ -96,14 +96,13 @@ const avatarColors = [
   };
 
   const selectCompany = (company) => {
-    localStorage.setItem("company", company);
-    // Save tenant_id and company_name for X-Tenant-ID header
-    if (typeof company === "object" && company.uuid) {
-      localStorage.setItem("tenant_id", company.uuid);
+    localStorage.setItem("company", JSON.stringify(company));
+    if (typeof company === "object" && company.tenant) {
+      localStorage.setItem("tenant_id", company.tenant);
       localStorage.setItem("company_name", company.company_name || "");
     } else {
-      localStorage.setItem("tenant_id", "default");
-      localStorage.setItem("company_name", company);
+      localStorage.removeItem("tenant_id");
+      localStorage.setItem("company_name", typeof company === "string" ? company : "");
     }
     navigate("/dashboard");
   };
