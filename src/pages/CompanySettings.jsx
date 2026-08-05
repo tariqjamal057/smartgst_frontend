@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useOutletContext } from "react-router-dom";
+import { useNavigate, useOutletContext } from "react-router-dom";
 
 import {
   Building2,
@@ -75,6 +75,7 @@ const sidebarOptions = [
 
 const CompanySettings = ({onSave}) => {
   const { collapsed } = useOutletContext();
+  const navigate = useNavigate();
    const [eInvoice, setEInvoice] = useState("No");
    const [ewayBill, setEwayBill] = useState("No");
   const [threshold, setThreshold] = useState("50000");
@@ -97,84 +98,128 @@ const CompanySettings = ({onSave}) => {
   const [selectedState, setSelectedState] = useState("");
   const [useInventory, setUseInventory] = useState("No");
   const dropdownRef = useRef(null);
-  // const [savedCompany, setSavedCompany] = useState(null);
-  const [savedCompany, setSavedCompany] = useState({
-
-  companyName: "TaxMate GST Pvt Ltd",
-  gstin: "09ABCDE1234F1Z5",
-  registeredAddress:
-    "Meerut, Uttar Pradesh, India",
-  branchAddress:
-    "Noida Sector 62, Uttar Pradesh",
-  state: "Uttar Pradesh",
-  country: "India",
-  email: "support@taxmategst.com",
-  website: "https://taxmategst.com",
-  contactPerson: "Raj",
-  contactNo: "+91 9876543210",
-  financialYear: "2024-25",
-  returnType: "Monthly",
-  registrationType: "Regular",
-  useInventory: "Yes",
-  ewayBill: "Yes",
-  threshold: "50000",
-  eInvoice: "Yes",
-  ewbLoginId: "taxmate_eway",
-  ewbPassword: "123456"
-});
+  const [savedCompany, setSavedCompany] = useState(null);
+  const [companyId, setCompanyId] = useState(null);
+  const [connectEmail, setConnectEmail] = useState("");
+  const [connectedUsers, setConnectedUsers] = useState([]);
+  const [connectLoading, setConnectLoading] = useState(false);
+  const [connectMessage, setConnectMessage] = useState("");
+  const [connectError, setConnectError] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [pwdMessage, setPwdMessage] = useState("");
+  const [pwdError, setPwdError] = useState("");
+  const [sessions, setSessions] = useState([]);
+  const [activity, setActivity] = useState([]);
+  const [sessionsMessage, setSessionsMessage] = useState("");
+  const [backupLoading, setBackupLoading] = useState(false);
+  const [backupMessage, setBackupMessage] = useState("");
+  const [backupError, setBackupError] = useState("");
+  const [importLoading, setImportLoading] = useState(false);
+  const [importMessage, setImportMessage] = useState("");
+  const [importError, setImportError] = useState("");
+  const [selectedImportFile, setSelectedImportFile] = useState(null);
+  const [splitDate, setSplitDate] = useState("");
+  const [splitLoading, setSplitLoading] = useState(false);
+  const [splitMessage, setSplitMessage] = useState("");
+  const [splitError, setSplitError] = useState("");
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteMessage, setDeleteMessage] = useState("");
+  const [deleteError, setDeleteError] = useState("");
+  const restoreInputRef = useRef(null);
+  const importInputRef = useRef(null);
    const [showStateList, setShowStateList] = useState(false);
+    const resetForm = () => {
+    setEInvoice("No");
+    setEwayBill("No");
+    setThreshold("50000");
+    setEwbLoginId("");
+    setEwbPassword("");
+    setEinvoiceLoginId("");
+    setEinvoicePassword("");
+    setFinancialYear("2024-25");
+    setBookBeginning("");
+    setReturnType("Monthly");
+    setRegistrationType("Regular");
+    setNewCompanyName("");
+    setGstin("");
+    setRegisteredAddress("");
+    setBranchAddress("");
+    setEmail("");
+    setWebsite("");
+    setContactPerson("");
+    setContactNo("");
+    setSelectedState("");
+    setUseInventory("No");
+  };
     const handleSave = async () => {
+    const websiteValue = website.trim();
+    const normalizedWebsite =
+      websiteValue && !/^https?:\/\//i.test(websiteValue)
+        ? `https://${websiteValue}`
+        : websiteValue;
+
     const companyData = {
-      companyName: newCompanyName,
+      company_name: newCompanyName,
       gstin,
-      registeredAddress,
-      branchAddress,
+      address: registeredAddress,
+      branch_address: branchAddress,
       state: selectedState,
       country: "India",
       email,
-      website,
-      contactPerson,
-      contactNo,
-      financialYear,
-      bookBeginning,
-      returnType,
-      registrationType,
-      useInventory,
-      ewayBill,
-      threshold,
-      eInvoice,
-      ewbLoginId,
-      ewbPassword,
+      website: normalizedWebsite,
+      phone: contactNo,
+      contact_person: contactPerson,
+      financial_year: financialYear,
+      book_beginning: bookBeginning || null,
+      return_type: returnType,
+      registration_type: registrationType,
+      use_inventory: useInventory,
+      eway_bill: ewayBill,
+      eway_bill_threshold: threshold,
+      ewb_login_id: ewbLoginId,
+      ewb_password: ewbPassword,
+      e_invoice: eInvoice,
+      einvoice_login_id: einvoiceLoginId,
+      einvoice_password: einvoicePassword,
     };
-    
-    setSavedCompany(companyData);
-    if (onSave) onSave(companyData);
+
     try {
-      await services.createCompanySetting({
-        company_name: newCompanyName,
-        gstin,
-        address: registeredAddress,
-        branch_address: branchAddress,
-        state: selectedState,
-        country: "India",
-        email,
-        website,
-        phone: contactNo,
-        contact_person: contactPerson,
-        financial_year: financialYear,
-        book_beginning: bookBeginning || null,
-        return_type: returnType,
-        registration_type: registrationType,
-        use_inventory: useInventory,
-        eway_bill: ewayBill,
-        eway_bill_threshold: threshold,
-        ewb_login_id: ewbLoginId,
-        ewb_password: ewbPassword,
-        e_invoice: eInvoice,
-        einvoice_login_id: einvoiceLoginId,
-        einvoice_password: einvoicePassword,
+      const res = companyId
+        ? await services.updateCompanySetting(companyId, companyData)
+        : await services.createCompanySetting(companyData);
+      const data = res.data;
+      if (!companyId && data.tenant) {
+        localStorage.setItem("tenant_id", data.tenant);
+      }
+      setCompanyId(data.id);
+      setSavedCompany({
+        id: data.id,
+        companyName: data.company_name,
+        gstin: data.gstin,
+        registeredAddress: data.address,
+        branchAddress: data.branch_address,
+        state: data.state,
+        country: data.country,
+        email: data.email,
+        website: data.website,
+        contactPerson: data.contact_person,
+        contactNo: data.phone,
+        financialYear: data.financial_year,
+        returnType: data.return_type,
+        registrationType: data.registration_type,
+        useInventory: data.use_inventory,
+        ewayBill: data.eway_bill,
+        threshold: data.eway_bill_threshold,
+        eInvoice: data.e_invoice,
+        ewbLoginId: data.ewb_login_id,
+        ewbPassword: data.ewb_password,
       });
-    } catch (err) { console.error(err); }
+      if (onSave) onSave(data);
+      alert(companyId ? "Company updated successfully." : "Company created successfully.");
+      resetForm();
+    } catch (err) { console.error(err); alert("Failed to save company: " + (err.response?.data?.detail || err.message)); }
   };
    const states = [
   "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar",
@@ -205,6 +250,89 @@ useEffect(() => {
     document.removeEventListener("mousedown", handleClickOutside);
   };
 }, []);
+
+const applyCompanyData = (data) => {
+  if (!data) return;
+  setCompanyId(data.id);
+  setNewCompanyName(data.company_name || "");
+  setGstin(data.gstin || "");
+  setRegisteredAddress(data.address || "");
+  setBranchAddress(data.branch_address || "");
+  setSelectedState(data.state || "");
+  setEmail(data.email || "");
+  setWebsite(data.website || "");
+  setContactPerson(data.contact_person || "");
+  setContactNo(data.phone || "");
+  setFinancialYear(data.financial_year || "2024-25");
+  setBookBeginning(data.book_beginning || "");
+  setReturnType(data.return_type || "Monthly");
+  setRegistrationType(data.registration_type || "Regular");
+  setUseInventory(data.use_inventory || "No");
+  setEwayBill(data.eway_bill || "No");
+  setThreshold(data.eway_bill_threshold || "50000");
+  setEInvoice(data.e_invoice || "No");
+  setEwbLoginId(data.ewb_login_id || "");
+  setEwbPassword(data.ewb_password || "");
+  setEinvoiceLoginId(data.einvoice_login_id || "");
+  setEinvoicePassword(data.einvoice_password || "");
+  setSavedCompany({
+    id: data.id,
+    companyName: data.company_name,
+    gstin: data.gstin,
+    registeredAddress: data.address,
+    branchAddress: data.branch_address,
+    state: data.state,
+    country: data.country,
+    email: data.email,
+    website: data.website,
+    contactPerson: data.contact_person,
+    contactNo: data.phone,
+    financialYear: data.financial_year,
+    returnType: data.return_type,
+    registrationType: data.registration_type,
+    useInventory: data.use_inventory,
+    ewayBill: data.eway_bill,
+    threshold: data.eway_bill_threshold,
+    eInvoice: data.e_invoice,
+    ewbLoginId: data.ewb_login_id,
+    ewbPassword: data.ewb_password,
+  });
+};
+
+useEffect(() => {
+  const getCachedCompanyId = () => {
+    const cached = localStorage.getItem("company");
+    if (!cached) return null;
+    try {
+      const obj = JSON.parse(cached);
+      return obj && obj.id ? obj.id : null;
+    } catch (e) {
+      console.error("Failed to parse cached company:", e);
+      return null;
+    }
+  };
+
+  const loadCompany = async () => {
+    try {
+      const cachedId = getCachedCompanyId();
+      let data = null;
+      if (cachedId) {
+        const res = await services.getCompanySetting(cachedId);
+        data = res.data;
+      } else {
+        const res = await services.getCompanySettings();
+        data = Array.isArray(res.data) ? res.data[0] : res.data;
+      }
+      console.log("Fetched company data:", data);
+      if (data) applyCompanyData(data);
+    } catch (err) {
+      console.error("Failed to load company settings:", err);
+    }
+  };
+  loadCompany();
+  loadConnectedUsers();
+  loadSecurityData();
+}, []);
 const handleGetGST = async () => {
   if (!isValidGST(gstin)) {
     alert("Invalid GSTIN");
@@ -212,29 +340,240 @@ const handleGetGST = async () => {
   }
 
   try {
-    const res = await fetch("http://localhost:5000/get-gst", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ gstin }),
-    });
-
-    const data = await res.json();
+    const res = await services.lookupGst(gstin);
+    const data = res.data;
 
     if (data.success) {
       // ✅ Auto fill fields
-      setNewCompanyName(data.companyName);
-      setRegisteredAddress(data.address);
-      setSelectedState(data.state);
+      setNewCompanyName(data.company_name || "");
+      setRegisteredAddress(data.address || "");
+      setBranchAddress(data.branch_address || "");
+      setSelectedState(data.state || "");
       setEmail(data.email || "");
+      setWebsite(data.website || "");
+      setContactPerson(data.contact_person || "");
+      setContactNo(data.contact_no || "");
     } else {
       alert("GST not found");
     }
 
   } catch (error) {
     console.error(error);
-    alert("Server error");
+    alert("GST lookup failed: " + (error.response?.data?.detail || error.message));
+  }
+};
+
+const loadConnectedUsers = async () => {
+  try {
+    const res = await services.getConnectedUsers();
+    setConnectedUsers(Array.isArray(res.data) ? res.data : []);
+  } catch (err) {
+    console.error("Failed to load connected users:", err);
+    setConnectedUsers([]);
+  }
+};
+
+const handleConnectCA = async () => {
+  if (!connectEmail.trim()) {
+    setConnectError("Enter a CA email");
+    setConnectMessage("");
+    return;
+  }
+  setConnectLoading(true);
+  setConnectError("");
+  setConnectMessage("");
+  try {
+    const res = await services.connectCA(connectEmail.trim());
+    setConnectMessage(`Connected ${res.data.email} (${res.data.role}).`);
+    setConnectEmail("");
+    loadConnectedUsers();
+  } catch (err) {
+    setConnectError(err.response?.data?.detail || "Failed to connect. Try again.");
+  } finally {
+    setConnectLoading(false);
+  }
+};
+
+const handleRemoveUser = async (id) => {
+  try {
+    await services.removeConnectedUser(id);
+    loadConnectedUsers();
+  } catch (err) {
+    alert(err.response?.data?.detail || "Failed to remove user.");
+  }
+};
+
+const loadSecurityData = async () => {
+  try {
+    const [sRes, aRes] = await Promise.all([
+      services.getActiveSessions(),
+      services.getLoginActivity(),
+    ]);
+    setSessions(Array.isArray(sRes.data) ? sRes.data : []);
+    setActivity(Array.isArray(aRes.data) ? aRes.data : []);
+  } catch (err) {
+    console.error("Failed to load security data:", err);
+  }
+};
+
+const handleChangePassword = async () => {
+  setPwdMessage("");
+  setPwdError("");
+  if (newPassword !== confirmPassword) {
+    setPwdError("New passwords do not match.");
+    return;
+  }
+  try {
+    const res = await services.changePassword({
+      current_password: currentPassword,
+      new_password: newPassword,
+      confirm_password: confirmPassword,
+    });
+    setPwdMessage(res.data.detail || "Password changed successfully.");
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+  } catch (err) {
+    setPwdError(err.response?.data?.detail || "Failed to change password.");
+  }
+};
+
+const handleRevokeSession = async (id) => {
+  try {
+    await services.revokeSession(id);
+    setSessionsMessage("Session revoked.");
+    loadSecurityData();
+  } catch (err) {
+    setSessionsMessage(err.response?.data?.detail || "Failed to revoke session.");
+  }
+};
+
+const extractErrorMessage = (err, fallback) => {
+  const data = err.response?.data;
+  if (Array.isArray(data)) return data.join(", ");
+  if (data && typeof data === "object" && data.detail) return data.detail;
+  return fallback;
+};
+
+const handleCreateBackup = async () => {
+  setBackupLoading(true);
+  setBackupMessage("");
+  setBackupError("");
+  try {
+    const res = await services.exportBackup();
+    const url = window.URL.createObjectURL(new Blob([res.data]));
+    const link = document.createElement("a");
+    link.href = url;
+    const disposition = res.headers["content-disposition"] || "";
+    const match = disposition.match(/filename="([^"]+)"/);
+    link.download = match
+      ? match[1]
+      : `backup_${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+    setBackupMessage("Backup downloaded successfully.");
+  } catch (err) {
+    setBackupError(extractErrorMessage(err, "Backup failed. Try again."));
+  } finally {
+    setBackupLoading(false);
+  }
+};
+
+const handleRestoreBackup = async (file) => {
+  if (!file) return;
+  if (!window.confirm("Restore will replace all current company data. Continue?")) return;
+  setBackupLoading(true);
+  setBackupMessage("");
+  setBackupError("");
+  try {
+    const res = await services.restoreBackup(file);
+    setBackupMessage(res.data?.detail || "Backup restored successfully.");
+  } catch (err) {
+    setBackupError(extractErrorMessage(err, "Restore failed. Try again."));
+  } finally {
+    setBackupLoading(false);
+  }
+};
+
+const handleImportFile = async (file) => {
+  if (!file) return;
+  setSelectedImportFile(file);
+  setImportLoading(true);
+  setImportMessage("");
+  setImportError("");
+  try {
+    const res = await services.restoreBackup(file);
+    setImportMessage(res.data?.detail || "Import completed successfully.");
+  } catch (err) {
+    setImportError(extractErrorMessage(err, "Import failed. Try again."));
+  } finally {
+    setImportLoading(false);
+  }
+};
+
+const handleSplitCompany = async () => {
+  if (!splitDate) {
+    setSplitError("Select a split date.");
+    setSplitMessage("");
+    return;
+  }
+  if (!window.confirm(`Create a new company starting from ${splitDate}?`)) return;
+  setSplitLoading(true);
+  setSplitMessage("");
+  setSplitError("");
+  try {
+    const res = await services.splitCompany(splitDate);
+    setSplitMessage(
+      `New company created: ${res.data.company_name} (${res.data.company_id}) for FY ${res.data.financial_year}.`
+    );
+    setSplitDate("");
+  } catch (err) {
+    setSplitError(extractErrorMessage(err, "Split failed. Try again."));
+  } finally {
+    setSplitLoading(false);
+  }
+};
+
+const handleDeleteCompany = async () => {
+  if (!companyId) {
+    setDeleteError("No company selected to delete.");
+    return;
+  }
+  if (!window.confirm("This will permanently delete the company and all its data. This cannot be undone. Continue?")) return;
+  setDeleteLoading(true);
+  setDeleteMessage("");
+  setDeleteError("");
+  try {
+    await services.deleteCompanySetting(companyId);
+    localStorage.removeItem("company");
+    localStorage.removeItem("tenant_id");
+    localStorage.removeItem("company_name");
+    setDeleteMessage("Company deleted successfully.");
+    navigate("/select-company", { replace: true });
+  } catch (err) {
+    setDeleteError(extractErrorMessage(err, "Delete failed. Try again."));
+    setDeleteLoading(false);
+  }
+};
+
+const handleRevokeAllSessions = async () => {
+  if (!window.confirm("Revoke all other sessions?")) return;  try {
+    await services.revokeAllSessions();
+    setSessionsMessage("All other sessions revoked.");
+    loadSecurityData();
+  } catch (err) {
+    setSessionsMessage(err.response?.data?.detail || "Failed to revoke sessions.");
+  }
+};
+
+const formatSessionTime = (iso) => {
+  if (!iso) return "";
+  try {
+    return new Date(iso).toLocaleString("en-IN");
+  } catch (e) {
+    return iso;
   }
 };
 
@@ -678,12 +1017,21 @@ const handleGetGST = async () => {
                       <>
                         <div className="popup-field">
                           <label>Invoice Login ID</label>
-                          <input placeholder="Invoice Username" />
+                          <input
+                            value={einvoiceLoginId}
+                            onChange={(e) => setEinvoiceLoginId(e.target.value)}
+                            placeholder="Invoice Username"
+                          />
                         </div>
 
                         <div className="popup-field">
                           <label>Invoice Password</label>
-                          <input type="password" placeholder="••••••" />
+                          <input
+                            type="password"
+                            value={einvoicePassword}
+                            onChange={(e) => setEinvoicePassword(e.target.value)}
+                            placeholder="••••••"
+                          />
                         </div>
                       </>
                     )}
@@ -792,7 +1140,7 @@ const handleGetGST = async () => {
                     <label>Branch Address</label>
                     <textarea
                       rows="2"
-                      value={branchAddress}
+                      value={branchAddress || savedCompany.branchAddress || ""}
                       onChange={(e) =>
                         setBranchAddress(e.target.value)
                       }
@@ -802,7 +1150,7 @@ const handleGetGST = async () => {
                   <div className="company-create-form-group">
                     <label>Email</label>
                     <input
-                      value={email}
+                      value={email || savedCompany.email || ""}
                       onChange={(e) =>
                         setEmail(e.target.value)
                       }
@@ -812,7 +1160,7 @@ const handleGetGST = async () => {
                   <div className="company-create-form-group">
                     <label>Website</label>
                     <input
-                      value={website}
+                      value={website || savedCompany.website || ""}
                       onChange={(e) =>
                         setWebsite(e.target.value)
                       }
@@ -822,7 +1170,7 @@ const handleGetGST = async () => {
                   <div className="company-create-form-group">
                     <label>Contact Person</label>
                     <input
-                      value={contactPerson}
+                      value={contactPerson || savedCompany.contactPerson || ""}
                       onChange={(e) =>
                         setContactPerson(e.target.value)
                       }
@@ -832,7 +1180,7 @@ const handleGetGST = async () => {
                   <div className="company-create-form-group">
                     <label>Contact No</label>
                     <input
-                      value={contactNo}
+                      value={contactNo || savedCompany.contactNo || ""}
                       onChange={(e) =>
                         setContactNo(e.target.value)
                       }
@@ -858,11 +1206,75 @@ const handleGetGST = async () => {
                 <input
                   type="email"
                   placeholder="Enter CA email"
+                  value={connectEmail}
+                  onChange={(e) => setConnectEmail(e.target.value)}
                 />
 
-                <button className="connect-btn">
-                  Connect
+                <button
+                  className="connect-btn"
+                  onClick={handleConnectCA}
+                  disabled={connectLoading}
+                >
+                  {connectLoading ? "Connecting..." : "Connect"}
                 </button>
+              </div>
+
+              {connectMessage && (
+                <p style={{ color: "#16a34a", marginTop: 10 }}>{connectMessage}</p>
+              )}
+              {connectError && (
+                <p style={{ color: "#dc2626", marginTop: 10 }}>{connectError}</p>
+              )}
+
+              <div className="connect-list">
+                <h3 style={{ margin: "18px 0 10px", fontSize: 15 }}>
+                  Connected Users
+                </h3>
+                {connectedUsers.length === 0 ? (
+                  <p style={{ color: "#888" }}>No connected users yet.</p>
+                ) : (
+                  connectedUsers.map((u) => (
+                    <div
+                      key={u.id}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        padding: "10px 12px",
+                        border: "1px solid #e5e7eb",
+                        borderRadius: 8,
+                        marginBottom: 8,
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 600 }}>{u.name || u.email}</div>
+                        <div style={{ color: "#888", fontSize: 13 }}>{u.email}</div>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <span
+                          style={{
+                            fontSize: 12,
+                            color: "#4b5563",
+                            background: "#f3f4f6",
+                            padding: "3px 8px",
+                            borderRadius: 999,
+                          }}
+                        >
+                          {u.role}
+                        </span>
+                        {u.role !== "ADMIN" && (
+                          <button
+                            className="connect-btn"
+                            style={{ background: "#dc2626" }}
+                            onClick={() => handleRemoveUser(u.id)}
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
 
             </div>
@@ -898,6 +1310,8 @@ const handleGetGST = async () => {
                         type="password" 
                         id="currentPassword"
                         placeholder="Enter current password" 
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
                       />
                       <button 
                         type="button" 
@@ -923,6 +1337,8 @@ const handleGetGST = async () => {
                         type="password" 
                         id="newPassword"
                         placeholder="Enter new password" 
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
                       />
                       <button 
                         type="button" 
@@ -944,6 +1360,8 @@ const handleGetGST = async () => {
                         type="password" 
                         id="confirmPassword"
                         placeholder="Confirm new password" 
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
                       />
                       <button 
                         type="button" 
@@ -958,7 +1376,14 @@ const handleGetGST = async () => {
                     </div>
                   </div>
 
-                  <button className="security-action-btn update-password-btn">
+                  {pwdError && (
+                    <p style={{ color: "#dc2626", marginBottom: 10 }}>{pwdError}</p>
+                  )}
+                  {pwdMessage && (
+                    <p style={{ color: "#16a34a", marginBottom: 10 }}>{pwdMessage}</p>
+                  )}
+
+                  <button className="security-action-btn update-password-btn" onClick={handleChangePassword}>
                     Update Password
                   </button>
                 </div>
@@ -1016,41 +1441,46 @@ const handleGetGST = async () => {
                   </div>
 
                   <div className="sessions-list">
-                    <div className="session-item current-session">
-                      <div className="session-device">
-                        <span className="device-icon">🖥️</span>
-                        <div>
-                          <h4>Current Session</h4>
-                          <p>Chrome on Windows • Meerut, India</p>
+                    {sessionsMessage && (
+                      <p style={{ color: "#4b5563", marginBottom: 10 }}>{sessionsMessage}</p>
+                    )}
+                    {sessions.length === 0 ? (
+                      <p style={{ color: "#888" }}>No active sessions found.</p>
+                    ) : (
+                      sessions.map((s) => (
+                        <div
+                          key={s.id}
+                          className={`session-item ${s.is_current ? "current-session" : ""}`}
+                        >
+                          <div className="session-device">
+                            <span className="device-icon">
+                              {s.device_type === "mobile" ? "📱" : "🖥️"}
+                            </span>
+                            <div>
+                              <h4>{s.device}</h4>
+                              <p>
+                                Last active: {formatSessionTime(s.last_active_at)}
+                                {s.ip_address ? ` • ${s.ip_address}` : ""}
+                              </p>
+                            </div>
+                          </div>
+                          {s.is_current ? (
+                            <span className="session-badge current">Current</span>
+                          ) : s.is_active ? (
+                            <button className="revoke-btn" onClick={() => handleRevokeSession(s.id)}>
+                              Revoke
+                            </button>
+                          ) : (
+                            <span className="session-badge">Revoked</span>
+                          )}
                         </div>
-                      </div>
-                      <span className="session-badge current">Current</span>
-                    </div>
-
-                    <div className="session-item">
-                      <div className="session-device">
-                        <span className="device-icon">📱</span>
-                        <div>
-                          <h4>Samsung Galaxy S21</h4>
-                          <p>Last active: 2 days ago • Chrome Mobile</p>
-                        </div>
-                      </div>
-                      <button className="revoke-btn">Revoke</button>
-                    </div>
-
-                    <div className="session-item">
-                      <div className="session-device">
-                        <span className="device-icon">🖥️</span>
-                        <div>
-                          <h4>MacBook Pro</h4>
-                          <p>Last active: 5 days ago • Safari</p>
-                        </div>
-                      </div>
-                      <button className="revoke-btn">Revoke</button>
-                    </div>
+                      ))
+                    )}
                   </div>
 
-                  <button className="revoke-all-btn">Revoke All Other Sessions</button>
+                  <button className="revoke-all-btn" onClick={handleRevokeAllSessions}>
+                    Revoke All Other Sessions
+                  </button>
                 </div>
 
                 {/* =========================================
@@ -1066,27 +1496,26 @@ const handleGetGST = async () => {
                   </div>
 
                   <div className="activity-list">
-                    <div className="activity-item">
-                      <div>
-                        <span className="activity-location">Meerut, India</span>
-                        <span className="activity-time">Today, 10:30 AM</span>
-                      </div>
-                      <span className="activity-status success">Successful</span>
-                    </div>
-                    <div className="activity-item">
-                      <div>
-                        <span className="activity-location">Delhi, India</span>
-                        <span className="activity-time">Yesterday, 8:15 PM</span>
-                      </div>
-                      <span className="activity-status success">Successful</span>
-                    </div>
-                    <div className="activity-item">
-                      <div>
-                        <span className="activity-location">Unknown Location</span>
-                        <span className="activity-time">3 days ago, 2:00 AM</span>
-                      </div>
-                      <span className="activity-status warning">Failed Attempt</span>
-                    </div>
+                    {activity.length === 0 ? (
+                      <p style={{ color: "#888" }}>No login activity recorded yet.</p>
+                    ) : (
+                      activity.map((a) => (
+                        <div key={a.id} className="activity-item">
+                          <div>
+                            <span className="activity-location">
+                              {a.device || "Unknown device"}
+                              {a.ip_address ? ` • ${a.ip_address}` : ""}
+                            </span>
+                            <span className="activity-time">
+                              {formatSessionTime(a.created_at)}
+                            </span>
+                          </div>
+                          <span className={`activity-status ${a.success ? "success" : "warning"}`}>
+                            {a.success ? "Successful" : "Failed Attempt"}
+                          </span>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
 
@@ -1129,15 +1558,42 @@ const handleGetGST = async () => {
 
               <div className="backup-actions">
 
-                <button className="company-backup-btn">
-                  Create Backup
+                <button
+                  className="company-backup-btn"
+                  onClick={handleCreateBackup}
+                  disabled={backupLoading}
+                >
+                  {backupLoading ? "Creating..." : "Create Backup"}
                 </button>
 
-                <button className="restore-btn">
+                <button
+                  className="restore-btn"
+                  onClick={() => restoreInputRef.current?.click()}
+                  disabled={backupLoading}
+                >
                   Restore Backup
                 </button>
 
+                <input
+                  ref={restoreInputRef}
+                  type="file"
+                  accept=".json,application/json"
+                  style={{ display: "none" }}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleRestoreBackup(file);
+                    e.target.value = "";
+                  }}
+                />
+
               </div>
+
+              {backupMessage && (
+                <p style={{ color: "#16a34a", marginTop: 10 }}>{backupMessage}</p>
+              )}
+              {backupError && (
+                <p style={{ color: "#dc2626", marginTop: 10 }}>{backupError}</p>
+              )}
 
             </div>
           )}
@@ -1154,12 +1610,38 @@ const handleGetGST = async () => {
               </div>
 
               <div className="upload-box">
-                <p>Drag & drop backup file here</p>
+                <p>
+                  {selectedImportFile
+                    ? selectedImportFile.name
+                    : "Drag & drop backup file here"}
+                </p>
 
-                <button className="upload-btn">
-                  Upload File
+                <button
+                  className="upload-btn"
+                  onClick={() => importInputRef.current?.click()}
+                  disabled={importLoading}
+                >
+                  {importLoading ? "Uploading..." : "Upload File"}
                 </button>
+
+                <input
+                  ref={importInputRef}
+                  type="file"
+                  accept=".json,application/json"
+                  style={{ display: "none" }}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleImportFile(file);
+                  }}
+                />
               </div>
+
+              {importMessage && (
+                <p style={{ color: "#16a34a", marginTop: 10 }}>{importMessage}</p>
+              )}
+              {importError && (
+                <p style={{ color: "#dc2626", marginTop: 10 }}>{importError}</p>
+              )}
 
             </div>
           )}
@@ -1202,13 +1684,28 @@ const handleGetGST = async () => {
 
               <div className="split-company-box">
 
-                <input type="date" />
+                <input
+                  type="date"
+                  value={splitDate}
+                  onChange={(e) => setSplitDate(e.target.value)}
+                />
 
-                <button className="split-btn">
-                  Split Company
+                <button
+                  className="split-btn"
+                  onClick={handleSplitCompany}
+                  disabled={splitLoading}
+                >
+                  {splitLoading ? "Splitting..." : "Split Company"}
                 </button>
 
               </div>
+
+              {splitMessage && (
+                <p style={{ color: "#16a34a", marginTop: 10 }}>{splitMessage}</p>
+              )}
+              {splitError && (
+                <p style={{ color: "#dc2626", marginTop: 10 }}>{splitError}</p>
+              )}
 
             </div>
           )}
@@ -1230,9 +1727,16 @@ const handleGetGST = async () => {
                   Are you sure you want to permanently delete this company?
                 </p>
 
-                <button className="delete-company-btn">
-                  Delete Permanently
+                <button
+                  className="delete-company-btn"
+                  onClick={handleDeleteCompany}
+                  disabled={deleteLoading}
+                >
+                  {deleteLoading ? "Deleting..." : "Delete Permanently"}
                 </button>
+
+                {deleteMessage && <p className="delete-message">{deleteMessage}</p>}
+                {deleteError && <p className="delete-error">{deleteError}</p>}
 
               </div>
 

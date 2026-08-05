@@ -643,6 +643,24 @@
   box-shadow: 5px 8px 14px -5px rgba(220, 38, 38, 0.5);
 }
 
+.delete-company-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.delete-message {
+  margin-top: 16px;
+  color: #059669;
+  font-weight: 600;
+}
+
+.delete-error {
+  margin-top: 16px;
+  color: #dc2626;
+  font-weight: 600;
+}
+
 /* ===============================
    RESPONSIVE DESIGN
 ================================ */

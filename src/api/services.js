@@ -181,8 +181,10 @@ export const deleteDocument = (id) => api.delete(`/accounting/documents/${id}/`)
 // ─── Company Settings ───
 export const getCompanySettings = (params) =>
   api.get("/accounting/company-settings/", { params: buildParams(params) });
+export const getCompanySetting = (id) => api.get(`/accounting/company-settings/${id}/`);
 export const createCompanySetting = (data) => api.post("/accounting/company-settings/", data);
 export const updateCompanySetting = (id, data) => api.patch(`/accounting/company-settings/${id}/`, data);
+export const deleteCompanySetting = (id) => api.delete(`/accounting/company-settings/${id}/`);
 
 // ─── Bank Reconciliation ───
 export const getBankReconciliations = (params) =>
@@ -191,6 +193,33 @@ export const createBankReconciliation = (data) =>
   api.post("/accounting/bank-reconciliations/", data);
 export const updateBankReconciliation = (id, data) =>
   api.patch(`/accounting/bank-reconciliations/${id}/`, data);
+
+// ─── Connect CA / Accountant ───
+export const connectCA = (email) => api.post("/accounting/connect-ca/", { email });
+export const getConnectedUsers = () => api.get("/accounting/connect-ca/");
+export const removeConnectedUser = (id) => api.delete(`/accounting/connect-ca/${id}/`);
+
+// ─── Security ───
+export const changePassword = (data) => api.post("/accounts/security/change_password/", data);
+export const getActiveSessions = () => api.get("/accounts/security/sessions/");
+export const revokeSession = (id) => api.post(`/accounts/security/revoke_session/${id}/`);
+export const revokeAllSessions = () => api.post("/accounts/security/revoke_all/");
+export const getLoginActivity = () => api.get("/accounts/security/login_activity/");
+
+// ─── Backup / Restore / Import ───
+export const exportBackup = () =>
+  api.get("/accounting/backup/export/", { responseType: "blob" });
+export const restoreBackup = (file) => {
+  const formData = new FormData();
+  formData.append("file", file);
+  return api.post("/accounting/backup/restore/", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+};
+
+// ─── Split Company ───
+export const splitCompany = (splitDate) =>
+  api.post("/accounting/company-split/", { split_date: splitDate });
 
 // ─── Ledger (read-only report data) ───
 export const getLedgerEntries = (params) =>
