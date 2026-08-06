@@ -158,6 +158,20 @@
 .invoice-header-actions {
   display: flex;
   gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.invoice-save-message {
+  color: #059669;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.invoice-save-error {
+  color: #dc2626;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 /* BUTTONS */

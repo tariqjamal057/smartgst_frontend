@@ -4,7 +4,7 @@ import { useLocation } from "react-router-dom";
 import { FaClipboardList } from "react-icons/fa";
 import GroupSecondary from "../pages/SecGroupList";
 import "../styles/ledger.css";
-import api from "../api/axios";
+import * as services from "../api/services";
 
 /* ================= GROUP TREE ================= */
 const GROUP_TREE = [
@@ -86,6 +86,46 @@ const getGroupType = (group) => {
   return "basic";
 };
 
+/* ================= ACCOUNT TYPE ================= */
+const mapRegTypeToGstType = (regType) => {
+  const map = {
+    "Regular": "REGISTERED_BUSINESS_REGULAR",
+    "Composition": "REGISTERED_BUSINESS_COMPOSITION",
+    "Unregistered / Consumer": "UNREGISTERED",
+    "Government Entity / TDS": "UNREGISTERED",
+    "Regular - SEZ": "REGISTERED_BUSINESS_REGULAR",
+    "Regular - Exports (EOU)": "REGISTERED_BUSINESS_REGULAR",
+    "E-Commerce Operator": "REGISTERED_BUSINESS_REGULAR",
+    "Input Service Distributor": "REGISTERED_BUSINESS_REGULAR",
+    "Embassy / UN Body": "UNREGISTERED",
+    "Non Resident Taxpayer": "UNREGISTERED",
+  };
+  return map[regType] || "UNREGISTERED";
+};
+
+const mapGroupToAccountType = (group) => {
+  const g = (group || "").toLowerCase();
+  if (
+    ["bank accounts", "cash in hand", "sundry debtors", "deposits",
+     "loan & advances", "stock in hand", "opening stock", "closing stock"]
+      .some((x) => g.includes(x))
+  ) return "ASSET";
+  if (
+    ["capital account", "sundry creditors", "bank od", "secured loans",
+     "unsecured loans", "duties & taxes", "provisions", "payables"]
+      .some((x) => g.includes(x))
+  ) return "LIABILITY";
+  if (
+    ["sales account", "direct income", "gross profit", "indirect income", "nett profit"]
+      .some((x) => g.includes(x))
+  ) return "REVENUE";
+  if (
+    ["purchase account", "direct expenses", "indirect expenses"]
+      .some((x) => g.includes(x))
+  ) return "EXPENSE";
+  return "ASSET";
+};
+
 export default function LedgerCreate() {
   const { collapsed } = useOutletContext();
   const navigate = useNavigate();
@@ -138,7 +178,8 @@ export default function LedgerCreate() {
   taxType: "IGST",      // IGST | CGST | SGST | CESS
   percentage: "",
   roundingMethod: "Not Applicable",
-  includeAssessable: "Not Applicable"
+  includeAssessable: "Not Applicable",
+  regType: "Regular"    // GST registration type
   });
 
 
@@ -200,29 +241,86 @@ export default function LedgerCreate() {
     }
   };
   const handleGetGSTDetails = async () => {
-  if (ledger.gstin.length !== 15) {
-    alert("GSTIN must be 15 characters");
-    return;
-  }
+    const isValidGST = (gst) => {
+      const regex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[A-Z0-9]{1}Z[A-Z0-9]{1}$/;
+      return regex.test(gst);
+    };
 
-  try {
-    const res = await api.get(`/gst/${ledger.gstin}/`);
-    const data = res.data;
+    if (!isValidGST(ledger.gstin)) {
+      alert("Invalid GSTIN");
+      return;
+    }
 
-    setLedger(prev => ({
-      ...prev,
-      name: data.legal_name || "",
-      address: data.address || "",
-      contactPerson: data.contact_person || "",
-      mobile: data.mobile || "",
-      email: data.email || ""
-    }));
+    try {
+      const res = await services.lookupGst(ledger.gstin);
+      const data = res.data;
 
-  } catch (err) {
-    console.error(err);
-    alert("Failed to fetch GST details");
-  }
-};
+      if (data.success) {
+        setLedger(prev => ({
+          ...prev,
+          name: data.company_name || "",
+          address: data.address || "",
+          contactPerson: data.contact_person || "",
+          mobile: data.contact_no || "",
+          email: data.email || ""
+        }));
+      } else {
+        alert("GST not found");
+      }
+
+    } catch (err) {
+      console.error(err);
+      alert("GST lookup failed: " + (err.response?.data?.detail || err.message));
+    }
+  };
+
+  /* ================= SAVE ================= */
+  const handleSave = async () => {
+    if (!ledger.name.trim()) {
+      alert("Please enter a ledger name");
+      return;
+    }
+
+    if (!ledger.group) {
+      alert("Please select a group for the ledger");
+      return;
+    }
+
+    try {
+      const group = ledger.group;
+      if (group === "Sundry Debtors" || group === "Sundry Creditors") {
+        await services.createParty({
+          name: ledger.name.trim(),
+          party_type: group === "Sundry Debtors" ? "CUSTOMER" : "VENDOR",
+          gst_type: mapRegTypeToGstType(ledger.regType),
+          gstin: ledger.gstin || "",
+          billing_address: ledger.address || "",
+          phone: ledger.mobile || "",
+          email: ledger.email || "",
+        });
+        alert("Party created successfully");
+        navigate(group === "Sundry Debtors" ? "/customers" : "/vendors");
+      } else {
+        await services.createAccount({
+          name: ledger.name.trim(),
+          account_type: mapGroupToAccountType(group),
+        });
+        alert("Ledger created successfully");
+        navigate(-1);
+      }
+    } catch (err) {
+      console.error(err);
+      const data = err.response?.data;
+      const detail =
+        (typeof data === "string" && data) ||
+        (Array.isArray(data) && data[0]) ||
+        data?.detail ||
+        data?.name?.[0] ||
+        err.message ||
+        "Failed to save ledger";
+      alert(detail);
+    }
+  };
 
   /* ================= gst-rowUI ================= */
   return (
@@ -800,7 +898,12 @@ export default function LedgerCreate() {
                <div className="ledger-line">
                  <span>Registration type</span>
                  <span>:</span>
-                 <select>
+                 <select
+                  value={ledger.regType}
+                  onChange={(e) =>
+                    setLedger(prev => ({ ...prev, regType: e.target.value }))
+                  }
+                 >
                   <option>Regular</option>
                   <option>Composition</option>
                   <option>Unregistered / Consumer</option>
@@ -838,8 +941,8 @@ export default function LedgerCreate() {
 
           {/* FOOTER */}
           <div className="ledger-footer">
-            <button className="led-save-btn">Save</button>
-            <button className="led-cancel-btn">Cancel</button>
+            <button className="led-save-btn" onClick={handleSave}>Save</button>
+            <button className="led-cancel-btn" onClick={() => navigate(-1)}>Cancel</button>
           </div>
 
         </div>

@@ -41,18 +41,21 @@ export default function GroupSecondary({ onClose, onSave }) {
         try {
             await services.createAccount({
                 name: form.name,
-                alias: form.alias,
-                group: form.under,
-                sub_ledger: form.subLedger === "Yes",
-                net_balance: form.netBalance === "Yes",
-                used_for_calc: form.usedForCalc === "Yes",
-                allocation_method: form.method,
-                account_type: "group"
+                account_type: mapUnderToType(form.under)
             });
             if (onSave) onSave(form);
         } catch {
             // keep form open
         }
+    };
+
+    const mapUnderToType = (under) => {
+        const g = (under || "").toLowerCase();
+        if (["asset", "bank", "cash", "debtor", "stock", "deposit"].some((x) => g.includes(x))) return "ASSET";
+        if (["capital", "liabilit", "creditor", "loan", "duties", "provision", "payable", "tax"].some((x) => g.includes(x))) return "LIABILITY";
+        if (["sales", "income", "profit", "revenue"].some((x) => g.includes(x))) return "REVENUE";
+        if (["purchase", "expense", "loss"].some((x) => g.includes(x))) return "EXPENSE";
+        return "ASSET";
     };
 
     return (

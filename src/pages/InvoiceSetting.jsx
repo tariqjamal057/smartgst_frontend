@@ -22,136 +22,359 @@ const invoiceMenu = [
   { key: "printing", label: "Invoice Printing", icon: <Printer size={16} /> }
 ];
 
-export default function InvoiceSettings() {
-    const { collapsed } = useOutletContext();
-    const [settingsId, setSettingsId] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
-    const [showInvoiceSettings, setShowInvoiceSettings] = useState(false);
-    const [manualEntry, setManualEntry] = useState(false);
-    const [currentCount, setCurrentCount] = useState(1);
-    const [crNo, setCrNo] = useState("");
-    const [crConfig, setCrConfig] = useState({
-         prefix: "Tax/2025-26",
-         zero: '',
-         start: '',
-         manual_pre: false
-       });
-
-      const generateInvoice = () => {
-      const { prefix, zero } = crConfig;
-      const zeroCount = Number(zero) || 0;
-      let number = String(currentCount);
-      const totalLength = zeroCount + number.length;
-      if (totalLength > 4) {
-        number = number.slice(0, 4 - zeroCount);
-      }
-      const finalNumber = "0".repeat(zeroCount) + number;
-      return `${prefix}/${finalNumber}`;
-    };
-
-       useEffect(() => {
-       if (!manualEntry) {
-         setCrNo(generateInvoice());
-       }
-     }, [currentCount, crConfig, manualEntry]);
-
-     const [printingSettings, setPrintingSettings] = useState({
-      invoiceTitle: "TAX INVOICE",
-      pageSize: "A4",
-      orientation: "Portrait",
-      pageType: "Original",
-      copies: 1,
-      template: "Modern Blue",
-      companyName: true,
-      companyAddress: true,
-      companyLogo: true,
-      contactPerson: true,
-      contactNumber: true,
-      companyEmail: true,
-      website: true,
-      stateCountry: true,
-      partyName: true,
-      partyAddress: true,
-      partyPerson: true,
-      partyPhone: true,
-      partyEmail: true,
-      partyGST: true,
-      partySupply: true,
-      qrCode: false,
-      eInvoiceQR: false,
-      eWayQR: false,
-      dispatchDetails: false,
-      terms: ""
-});
-
-const handlePrintingChange = (key, value) => {
-  setPrintingSettings((prev) => ({ ...prev, [key]: value }));
-};
-
-const handleToggle = (key) => {
-  setPrintingSettings((prev) => ({ ...prev, [key]: !prev[key] }));
-};
-
-const [defaultSettings, setDefaultSettings] = useState({
+const DEFAULT_SETTINGS = {
   rcm: false, orderDetails: true, eco: false, dispatch: false,
   shippedTo: true, discount: true, taxColumn: true, salesman: false,
   narration: true, eway: false, dueDate: true, einvoice: false,
   roundOff: true, gstEnable: true
-});
-
-const handleDefaultToggle = (key) => {
-  setDefaultSettings((prev) => ({ ...prev, [key]: !prev[key] }));
 };
 
-const [activeTab, setActiveTab] = useState("default");
-
-const fetchSettings = async () => {
-  setLoading(true);
-  try {
-    const res = await services.getInvoiceSettings();
-    const results = res.data.results || res.data || [];
-    if (results.length > 0) {
-      const s = results[0];
-      setSettingsId(s.id);
-      if (s.default_settings) setDefaultSettings((prev) => ({ ...prev, ...s.default_settings }));
-      if (s.printing_settings) setPrintingSettings((prev) => ({ ...prev, ...s.printing_settings }));
-      if (s.voucher_config) {
-        setCrConfig((prev) => ({ ...prev, ...s.voucher_config }));
-        if (s.voucher_config.start) setCurrentCount(s.voucher_config.start);
-      }
-    }
-  } catch {
-    // use defaults
-  } finally {
-    setLoading(false);
-  }
+const PRINTING_SETTINGS = {
+  invoiceTitle: "TAX INVOICE",
+  pageSize: "A4",
+  orientation: "Portrait",
+  pageType: "Original",
+  copies: 1,
+  ewayCopies: 1,
+  template: "Modern Blue",
+  printer: "Default",
+  companyName: true,
+  companyAddress: true,
+  companyLogo: true,
+  contactPerson: true,
+  contactNumber: true,
+  companyEmail: true,
+  website: true,
+  stateCountry: true,
+  partyName: true,
+  partyAddress: true,
+  partyPerson: true,
+  partyPhone: true,
+  partyEmail: true,
+  partyGST: true,
+  partySupply: true,
+  qrCode: false,
+  eInvoiceQR: false,
+  eWayQR: false,
+  dispatchDetails: false,
+  terms: ""
 };
 
-useEffect(() => {
-  fetchSettings();
-}, []);
+const EMPTY_VOUCHER_CONFIG = { prefix: "Tax/2025-26", zero: "", start: 1, manual: false };
 
-const handleSave = async () => {
-  setSaving(true);
-  try {
-    const payload = {
-      default_settings: defaultSettings,
-      printing_settings: printingSettings,
-      voucher_config: { ...crConfig, manual_pre: manualEntry, start: currentCount }
+const extractError = (err, fallback) => {
+  const data = err.response?.data;
+  if (Array.isArray(data)) return data.join(", ");
+  if (data && typeof data === "object" && data.detail) return data.detail;
+  return fallback;
+};
+
+const buildNumber = (config) => {
+  if (config.manual) return "Manual";
+  const zeroCount = Number(config.zero) || 0;
+  let num = String(config.start ?? 1);
+  if (num.length > 4 - zeroCount) num = num.slice(0, 4 - zeroCount);
+  return `${config.prefix}/${"0".repeat(zeroCount)}${num}`;
+};
+
+export default function InvoiceSettings() {
+    const { collapsed } = useOutletContext();
+    const [activeTab, setActiveTab] = useState("default");
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [saveMessage, setSaveMessage] = useState("");
+    const [saveError, setSaveError] = useState("");
+    const [preferencesId, setPreferencesId] = useState(null);
+
+    const [defaultSettings, setDefaultSettings] = useState(DEFAULT_SETTINGS);
+    const [printingSettings, setPrintingSettings] = useState(PRINTING_SETTINGS);
+    const [voucherConfig, setVoucherConfig] = useState(EMPTY_VOUCHER_CONFIG);
+    const [refConfig, setRefConfig] = useState(EMPTY_VOUCHER_CONFIG);
+
+    const [books, setBooks] = useState([]);
+    const [booksLoading, setBooksLoading] = useState(false);
+    const [bookForm, setBookForm] = useState({ name: "", under: "sale" });
+    const [editingBookId, setEditingBookId] = useState(null);
+    const [bookSaving, setBookSaving] = useState(false);
+    const [bookMessage, setBookMessage] = useState("");
+    const [bookError, setBookError] = useState("");
+
+    const handleDefaultToggle = (key) => {
+      setDefaultSettings((prev) => ({ ...prev, [key]: !prev[key] }));
     };
-    if (settingsId) {
-      await services.updateInvoiceSetting(settingsId, payload);
-    } else {
-      const res = await services.createInvoiceSetting(payload);
-      if (res.data && res.data.id) setSettingsId(res.data.id);
-    }
-  } catch {
-    // silent
-  } finally {
-    setSaving(false);
-  }
-};
+
+    const handlePrintingChange = (key, value) => {
+      setPrintingSettings((prev) => ({ ...prev, [key]: value }));
+    };
+
+    const handleToggle = (key) => {
+      setPrintingSettings((prev) => ({ ...prev, [key]: !prev[key] }));
+    };
+
+    const updateConfigField = (setter, key, value) => {
+      setter((prev) => ({ ...prev, [key]: value }));
+    };
+
+    const fetchBooks = async () => {
+      setBooksLoading(true);
+      try {
+        const res = await services.getInvoiceBooks();
+        setBooks(res.data.results || res.data || []);
+      } catch {
+        setBooks([]);
+      } finally {
+        setBooksLoading(false);
+      }
+    };
+
+    const fetchSettings = async () => {
+      setLoading(true);
+      setSaveMessage("");
+      setSaveError("");
+      try {
+        const res = await services.getInvoicePreferences();
+        const p = res.data || {};
+        setPreferencesId(p.id || null);
+        if (p.default_settings) setDefaultSettings((prev) => ({ ...prev, ...p.default_settings }));
+        if (p.printing_settings) setPrintingSettings((prev) => ({ ...prev, ...p.printing_settings }));
+        if (p.voucher_config) setVoucherConfig((prev) => ({ ...prev, ...p.voucher_config }));
+        if (p.ref_config) setRefConfig((prev) => ({ ...prev, ...p.ref_config }));
+      } catch (err) {
+        setSaveError(extractError(err, "Failed to load settings."));
+      } finally {
+        setLoading(false);
+      }
+      fetchBooks();
+    };
+
+    useEffect(() => {
+      fetchSettings();
+    }, []);
+
+    const persistPreferences = async (overrides = {}) => {
+      const payload = {
+        default_settings: defaultSettings,
+        printing_settings: printingSettings,
+        voucher_config: voucherConfig,
+        ref_config: refConfig,
+        ...overrides
+      };
+      let id = preferencesId;
+      if (!id) {
+        const res = await services.getInvoicePreferences();
+        id = res.data?.id;
+        setPreferencesId(id);
+      }
+      if (!id) throw new Error("Preferences record not available.");
+      await services.updateInvoicePreferences(id, payload);
+      return id;
+    };
+
+    const handleSave = async () => {
+      setSaving(true);
+      setSaveMessage("");
+      setSaveError("");
+      try {
+        await persistPreferences();
+        setSaveMessage("Settings saved successfully.");
+      } catch (err) {
+        setSaveError(extractError(err, "Failed to save settings."));
+      } finally {
+        setSaving(false);
+      }
+    };
+
+    const handleCreateBook = async () => {
+      if (!bookForm.name.trim()) {
+        setBookError("Book name is required.");
+        setBookMessage("");
+        return;
+      }
+      setBookSaving(true);
+      setBookMessage("");
+      setBookError("");
+      try {
+        await services.createInvoiceBook({ name: bookForm.name.trim(), under: bookForm.under.trim() || "sale" });
+        setBookForm({ name: "", under: "sale" });
+        setBookMessage("Invoice book created.");
+        await fetchBooks();
+      } catch (err) {
+        setBookError(extractError(err, "Failed to create invoice book."));
+      } finally {
+        setBookSaving(false);
+      }
+    };
+
+    const handleSelectBook = (e) => {
+      const id = Number(e.target.value);
+      const book = books.find((b) => b.id === id);
+      setEditingBookId(id || null);
+      setBookMessage("");
+      setBookError("");
+      if (book) setBookForm({ name: book.name, under: book.under });
+    };
+
+    const handleAlterBook = async () => {
+      if (!editingBookId) {
+        setBookError("Select an invoice book first.");
+        setBookMessage("");
+        return;
+      }
+      if (!bookForm.name.trim()) {
+        setBookError("Book name is required.");
+        setBookMessage("");
+        return;
+      }
+      setBookSaving(true);
+      setBookMessage("");
+      setBookError("");
+      try {
+        await services.updateInvoiceBook(editingBookId, {
+          name: bookForm.name.trim(),
+          under: bookForm.under.trim() || "sale"
+        });
+        setBookMessage("Invoice book updated.");
+        await fetchBooks();
+      } catch (err) {
+        setBookError(extractError(err, "Failed to update invoice book."));
+      } finally {
+        setBookSaving(false);
+      }
+    };
+
+    const handleDeleteBook = async () => {
+      if (!editingBookId) {
+        setBookError("Select an invoice book first.");
+        setBookMessage("");
+        return;
+      }
+      const book = books.find((b) => b.id === editingBookId);
+      if (!window.confirm(`Delete invoice book "${book ? book.name : ""}"?`)) return;
+      setBookSaving(true);
+      setBookMessage("");
+      setBookError("");
+      try {
+        await services.deleteInvoiceBook(editingBookId);
+        setBookForm({ name: "", under: "sale" });
+        setEditingBookId(null);
+        setBookMessage("Invoice book deleted.");
+        await fetchBooks();
+      } catch (err) {
+        setBookError(extractError(err, "Failed to delete invoice book."));
+      } finally {
+        setBookSaving(false);
+      }
+    };
+
+    const saveNumberConfig = async (which) => {
+      setSaving(true);
+      setSaveMessage("");
+      setSaveError("");
+      try {
+        const overrides = which === "voucher"
+          ? { voucher_config: voucherConfig }
+          : { ref_config: refConfig };
+        await persistPreferences(overrides);
+        setSaveMessage(
+          which === "voucher" ? "Voucher number settings saved." : "Invoice ref number settings saved."
+        );
+        return true;
+      } catch (err) {
+        setSaveError(extractError(err, "Failed to save settings."));
+        return false;
+      } finally {
+        setSaving(false);
+      }
+    };
+
+    const validateNumberConfig = (config) => {
+      if (!config.manual && (Number(config.zero) || 0) + String(config.start).length > 4) {
+        alert("Zero + Start digits cannot exceed 4");
+        return false;
+      }
+      return true;
+    };
+
+    const renderNumberFields = (config, setConfig, which) => (
+      <>
+        <div className="form-row">
+          <div className="form-group">
+            <label>Manual:</label>
+            <div className="setting-popup-radio">
+              <label>
+                <input
+                  type="radio"
+                  checked={config.manual}
+                  onChange={() => setConfig((prev) => ({ ...prev, manual: true }))}
+                />
+                Yes
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  checked={!config.manual}
+                  onChange={() => setConfig((prev) => ({ ...prev, manual: false }))}
+                />
+                No
+              </label>
+            </div>
+          </div>
+          {!config.manual && (
+            <>
+              <div className="form-group">
+                <label>Prefix</label>
+                <input
+                  className="popup-input-box"
+                  value={config.prefix}
+                  onChange={(e) => {
+                    let value = e.target.value;
+                    if (value.length > 11) value = value.slice(0, 11);
+                    setConfig((prev) => ({ ...prev, prefix: value }));
+                  }}
+                />
+              </div>
+              <div className="form-group">
+                <label>Zero Padding</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="4"
+                  value={config.zero}
+                  onChange={(e) => {
+                    let val = Number(e.target.value) || 0;
+                    if (val > 4) val = 4;
+                    setConfig((prev) => ({ ...prev, zero: val }));
+                  }}
+                />
+              </div>
+              <div className="form-group">
+                <label>Start No</label>
+                <input
+                  type="number"
+                  value={config.start}
+                  onChange={(e) => {
+                    let val = Math.max(0, Number(e.target.value) || 0);
+                    setConfig((prev) => ({ ...prev, start: val }));
+                  }}
+                />
+              </div>
+            </>
+          )}
+        </div>
+        <div className="popup-actions">
+          <button
+            className="restore-btn"
+            onClick={async () => {
+              if (!validateNumberConfig(config)) return;
+              await saveNumberConfig(which);
+            }}
+            disabled={saving}
+          >
+            Save
+          </button>
+        </div>
+      </>
+    );
 
   return (
 <div className={`main ${collapsed ? "collapsed" : ""}`}>
@@ -181,8 +404,10 @@ const handleSave = async () => {
             <p>Manage invoice preferences</p>
           </div>
           <div className="invoice-header-actions">
+            {saveMessage && <span className="invoice-save-message">{saveMessage}</span>}
+            {saveError && <span className="invoice-save-error">{saveError}</span>}
             <button className="restore-btn" onClick={fetchSettings}>Restore</button>
-            <button className="save-btn" onClick={handleSave} disabled={saving}>
+            <button className="save-btn" onClick={handleSave} disabled={saving || loading}>
               {saving ? "Saving..." : "Save"}
             </button>
           </div>
@@ -216,7 +441,7 @@ const handleSave = async () => {
                   <label className="switch">
                     <input
                       type="checkbox"
-                      checked={defaultSettings[key]}
+                      checked={!!defaultSettings[key]}
                       onChange={() => handleDefaultToggle(key)}
                     />
                     <span className="slider"></span>
@@ -232,15 +457,27 @@ const handleSave = async () => {
               <div className="form-row">
                 <div className="form-group">
                   <label>Name</label>
-                  <input/>
+                  <input
+                    value={bookForm.name}
+                    onChange={(e) => setBookForm((prev) => ({ ...prev, name: e.target.value }))}
+                    placeholder="e.g. GST Invoice"
+                  />
                 </div>
                 <div className="form-group">
                   <label>Under</label>
-                  <input placeholder='sale'></input>
+                  <input
+                    value={bookForm.under}
+                    onChange={(e) => setBookForm((prev) => ({ ...prev, under: e.target.value }))}
+                    placeholder="sale"
+                  />
                 </div>
               </div>
+              {bookMessage && <p className="invoice-save-message">{bookMessage}</p>}
+              {bookError && <p className="invoice-save-error">{bookError}</p>}
               <div className="form-actions">
-                <button className="save-btn">Save</button>
+                <button className="save-btn" onClick={handleCreateBook} disabled={bookSaving}>
+                  {bookSaving ? "Saving..." : "Save"}
+                </button>
               </div>
             </div>
           )}
@@ -249,196 +486,51 @@ const handleSave = async () => {
             <div className="compact-form">
               <div className="form-group">
                 <label>Select Invoice Book</label>
-                <select>
-                  <option>Sales Book</option>
-                  <option>GST Invoice</option>
+                <select value={editingBookId || ""} onChange={handleSelectBook}>
+                  <option value="">Select a book</option>
+                  {booksLoading && <option disabled>Loading...</option>}
+                  {books.map((b) => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
                 </select>
               </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Name</label>
+                  <input
+                    value={bookForm.name}
+                    onChange={(e) => setBookForm((prev) => ({ ...prev, name: e.target.value }))}
+                    placeholder="Book name"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Under</label>
+                  <input
+                    value={bookForm.under}
+                    onChange={(e) => setBookForm((prev) => ({ ...prev, under: e.target.value }))}
+                    placeholder="sale"
+                  />
+                </div>
+              </div>
+              {bookMessage && <p className="invoice-save-message">{bookMessage}</p>}
+              {bookError && <p className="invoice-save-error">{bookError}</p>}
               <div className="form-actions">
-                <button className="restore-btn">Alter</button>
-                <button className="delete-btn">Delete</button>
+                <button className="restore-btn" onClick={handleAlterBook} disabled={bookSaving}>
+                  {bookSaving ? "Saving..." : "Alter"}
+                </button>
+                <button className="delete-btn" onClick={handleDeleteBook} disabled={bookSaving}>
+                  Delete
+                </button>
               </div>
             </div>
           )}
 
           {/* VOUCHER */}
           {activeTab === "voucher" && (
-            <div className="compact-form">
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Manual:</label>
-                  <div className="setting-popup-radio">
-                    <label>
-                      <input
-                        type="radio"
-                        checked={manualEntry}
-                        onChange={() => {
-                          setManualEntry(true);
-                          setCrNo("");
-                        }}
-                      />
-                      Yes
-                    </label>
-                    <label>
-                      <input
-                        type="radio"
-                        checked={!manualEntry}
-                        onChange={() => setManualEntry(false)}
-                      />
-                      No
-                    </label>
-                  </div>
-                </div>
-                {!manualEntry && (
-                  <>
-                  <div className="form-group">
-                    <label>Prefix</label>
-                    <input
-                      className="popup-input-box"
-                      value={crConfig.prefix}
-                      onChange={(e) => {
-                        let value = e.target.value;
-                        if (value.length > 11) value = value.slice(0, 11);
-                        setCrConfig({ ...crConfig, prefix: value });
-                      }}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Zero Padding</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="4"
-                      value={crConfig.zero}
-                      onChange={(e) => {
-                        let val = Number(e.target.value) || 0;
-                        if (val > 4) val = 4;
-                        setCrConfig({ ...crConfig, zero: val });
-                      }}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Start No</label>
-                    <input
-                      type="number"
-                      value={crConfig.start}
-                      onChange={(e) => {
-                        let val = Math.max(0, Number(e.target.value) || 0);
-                        setCrConfig({ ...crConfig, start: val });
-                        setCurrentCount(val);
-                      }}
-                    />
-                  </div>
-                  </>
-                )}
-                <div className="popup-actions">
-                  <button onClick={() => setShowInvoiceSettings(false)}>Cancel</button>
-                  <button
-                    onClick={() => {
-                      if (
-                        !manualEntry &&
-                        (Number(crConfig.zero) || 0) + String(crConfig.start).length > 4
-                      ) {
-                        alert("Zero + Start digits cannot exceed 4");
-                        return;
-                      }
-                      setShowInvoiceSettings(false);
-                    }}
-                  >
-                    Save
-                  </button>
-                </div>
-              </div>
-            </div>
+            renderNumberFields(voucherConfig, setVoucherConfig, "voucher")
           )}
           {activeTab === "invoice-ref" && (
-            <div className="compact-form">
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Manual:</label>
-                  <div className="setting-popup-radio">
-                    <label>
-                      <input
-                        type="radio"
-                        checked={manualEntry}
-                        onChange={() => {
-                          setManualEntry(true);
-                          setCrNo("");
-                        }}
-                      />
-                      Yes
-                    </label>
-                    <label>
-                      <input
-                        type="radio"
-                        checked={!manualEntry}
-                        onChange={() => setManualEntry(false)}
-                      />
-                      No
-                    </label>
-                  </div>
-                </div>
-                {!manualEntry && (
-                  <>
-                  <div className="form-group">
-                    <label>Prefix</label>
-                    <input
-                      className="popup-input-box"
-                      value={crConfig.prefix}
-                      onChange={(e) => {
-                        let value = e.target.value;
-                        if (value.length > 11) value = value.slice(0, 11);
-                        setCrConfig({ ...crConfig, prefix: value });
-                      }}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Zero Padding</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="4"
-                      value={crConfig.zero}
-                      onChange={(e) => {
-                        let val = Number(e.target.value) || 0;
-                        if (val > 4) val = 4;
-                        setCrConfig({ ...crConfig, zero: val });
-                      }}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Start No</label>
-                    <input
-                      type="number"
-                      value={crConfig.start}
-                      onChange={(e) => {
-                        let val = Math.max(0, Number(e.target.value) || 0);
-                        setCrConfig({ ...crConfig, start: val });
-                        setCurrentCount(val);
-                      }}
-                    />
-                  </div>
-                  </>
-                )}
-                <div className="popup-actions">
-                  <button onClick={() => setShowInvoiceSettings(false)}>Cancel</button>
-                  <button
-                    onClick={() => {
-                      if (
-                        !manualEntry &&
-                        (Number(crConfig.zero) || 0) + String(crConfig.start).length > 4
-                      ) {
-                        alert("Zero + Start digits cannot exceed 4");
-                        return;
-                      }
-                      setShowInvoiceSettings(false);
-                    }}
-                  >
-                    Save
-                  </button>
-                </div>
-              </div>
-            </div>
+            renderNumberFields(refConfig, setRefConfig, "ref")
           )}
 
           {/* PRINTING */}
@@ -490,11 +582,23 @@ const handleSave = async () => {
                   </div>
                   <div className="printing-group">
                     <label>No. Of Pages</label>
-                    <input type="number" placeholder="1" />
+                    <input
+                      type="number"
+                      min="1"
+                      value={printingSettings.copies}
+                      onChange={(e) =>
+                        handlePrintingChange("copies", Math.max(1, Number(e.target.value) || 1))
+                      }
+                    />
                   </div>
                   <div className="printing-group">
                     <label>Type Of Pages</label>
-                    <select>
+                    <select
+                      value={printingSettings.pageType}
+                      onChange={(e) =>
+                        handlePrintingChange("pageType", e.target.value)
+                      }
+                    >
                       <option>Not Applicable</option>
                       <option>Original</option>
                       <option>Duplicate</option>
@@ -504,7 +608,14 @@ const handleSave = async () => {
                   </div>
                   <div className="printing-group">
                     <label>E-way Bill Copy</label>
-                    <input type="number" placeholder="1" />
+                    <input
+                      type="number"
+                      min="1"
+                      value={printingSettings.ewayCopies}
+                      onChange={(e) =>
+                        handlePrintingChange("ewayCopies", Math.max(1, Number(e.target.value) || 1))
+                      }
+                    />
                   </div>
                   <div className="printing-group">
                     <label>Invoice Template</label>
@@ -520,8 +631,14 @@ const handleSave = async () => {
                   </div>
                   <div className="printing-group">
                     <label>Select Printer</label>
-                    <select>
-                      <option>Select</option>
+                    <select
+                      value={printingSettings.printer}
+                      onChange={(e) =>
+                        handlePrintingChange("printer", e.target.value)
+                      }
+                    >
+                      <option>Default</option>
+                      <option>Draft</option>
                     </select>
                   </div>
                 </div>
@@ -547,7 +664,7 @@ const handleSave = async () => {
                       <label className="mini-switch">
                         <input
                           type="checkbox"
-                          checked={printingSettings[key]}
+                          checked={!!printingSettings[key]}
                           onChange={() => handleToggle(key)}
                         />
                         <span className="mini-slider"></span>
@@ -576,7 +693,7 @@ const handleSave = async () => {
                       <label className="mini-switch">
                         <input
                           type="checkbox"
-                          checked={printingSettings[key]}
+                          checked={!!printingSettings[key]}
                           onChange={() => handleToggle(key)}
                         />
                         <span className="mini-slider"></span>
@@ -602,7 +719,7 @@ const handleSave = async () => {
                       <label className="mini-switch">
                         <input
                           type="checkbox"
-                          checked={printingSettings[key]}
+                          checked={!!printingSettings[key]}
                           onChange={() => handleToggle(key)}
                         />
                         <span className="mini-slider"></span>
@@ -633,7 +750,7 @@ const handleSave = async () => {
           <h3>Preview</h3>
           <span>Live</span>
         </div>
-        <div className={`preview-card ${printingSettings.orientation.toLowerCase()}`}>
+        <div className={`preview-card ${String(printingSettings.orientation).toLowerCase()}`}>
           <div className="preview-company-header">
             <div className="preview-company-left">
               {printingSettings.companyName && (
@@ -664,7 +781,7 @@ const handleSave = async () => {
             </div>
             <div>
               <h4>{printingSettings.invoiceTitle}</h4>
-              <p>{crNo || "#INV-001"}</p>
+              <p>{buildNumber(voucherConfig) || "#INV-001"}</p>
             </div>
           </div>
           {defaultSettings.rcm && <div className="preview-tag">RCM Applicable</div>}

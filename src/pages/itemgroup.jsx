@@ -35,8 +35,19 @@ const InventoryMaster = () => {
     }
   };
 
+  const fetchGodowns = async () => {
+    try {
+      const res = await services.getGodowns();
+      const data = res.data.results || res.data || [];
+      setGodowns(data.map((g) => g.name));
+    } catch {
+      setGodowns([]);
+    }
+  };
+
   useEffect(() => {
     fetchCategories();
+    fetchGodowns();
   }, []);
 
   useEffect(() => {
@@ -65,14 +76,56 @@ const InventoryMaster = () => {
     }
   };
 
-  const saveGodown = () => {
+  const saveGodown = async () => {
     if (!godownForm.name) return;
-    setGodowns((prev) => [...prev, godownForm.name]);
-    setGodownForm({ name: "", description: "", address: "" });
+    try {
+      await services.createGodown({
+        name: godownForm.name,
+        description: godownForm.description,
+        address: godownForm.address
+      });
+      setGodownForm({ name: "", description: "", address: "" });
+      fetchGodowns();
+    } catch {
+      // keep form as is on error
+    }
   };
 
-  const saveItem = () => {
-    console.log(itemForm);
+  const saveItem = async () => {
+    try {
+      const category = categories.find((c) => c.name === itemForm.category);
+      const unit = ["NONE", "BOX", "BAG", "BOTTLE", "BUNDLES"].includes(
+        (itemForm.unit || "").toUpperCase()
+      )
+        ? (itemForm.unit || "").toUpperCase()
+        : "NONE";
+      const gstTypeMap = {
+        "Taxable": "GST",
+        "Non-GST": "EXEMPT",
+        "Nil GST": "EXEMPT",
+        "Exempt": "EXEMPT",
+      };
+      await services.createItem({
+        name: itemForm.name,
+        primary_unit: unit,
+        category: category ? category.id : null,
+        location: itemForm.godown || "",
+        hsn_code: itemForm.hsn || "",
+        gst_value: itemForm.gstRate ? Number(itemForm.gstRate) : null,
+        gst_type: itemForm.gstApplicable
+          ? gstTypeMap[itemForm.taxability] || "GST"
+          : "EXEMPT",
+        opening_quantity: Number(itemForm.qty) || 0,
+        at_price: itemForm.rate ? Number(itemForm.rate) : null,
+      });
+      setItemForm({
+        name: "", description: "", unit: "", category: "", godown: "",
+        gstApplicable: true, hsn: "", gstDescription: "", taxability: "Taxable",
+        gstRate: "", supplyType: "Goods", qty: "", rate: "", amount: ""
+      });
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   return (

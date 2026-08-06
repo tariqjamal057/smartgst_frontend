@@ -421,6 +421,12 @@ import {
   BadgeIndianRupee,
   ReceiptText
 } from "lucide-react";
+import {
+  previewLedgerReport,
+  printLedgerReport,
+  exportLedgerExcel,
+  exportLedgerPDF
+} from "../utils/ledgerReport";
 import "../styles/VendorLedger.css";
 
 
@@ -438,19 +444,52 @@ const VendorLedger = () => {
     (async () => {
       try {
         const res = await services.getParties({ type: "vendor" });
-        if (Array.isArray(res.data) && res.data.length > 0) {
-          setParties(res.data);
-          setSelectedParty(res.data[0]);
+        const data = res.data.results || res.data || [];
+        const list = Array.isArray(data) ? data : [];
+        setParties(list);
+        if (list.length > 0) {
+          setSelectedParty(list[0]);
         } else {
-          setParties([]);
+          setSelectedParty(null);
         }
       } catch {
         setParties([]);
+        setSelectedParty(null);
       } finally {
         setLoading(false);
       }
     })();
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const account = selectedParty?.account;
+    if (!account) {
+      setLedgerEntries([]);
+      return undefined;
+    }
+    (async () => {
+      try {
+        const res = await services.getLedgerEntries({ account });
+        if (cancelled) return;
+        const data = Array.isArray(res.data) ? res.data : [];
+        setLedgerEntries(data.map((e) => ({
+          date: e.date,
+          ledger: e.account,
+          narration: e.narration || "",
+          voucherType: e.voucher_type || "",
+          voucherNo: e.voucher_no || "",
+          invoiceNo: e.invoice_no || "",
+          dr: e.debit || 0,
+          cr: e.credit || 0,
+          balance: e.balance || 0,
+        })));
+      } catch {
+        if (!cancelled) setLedgerEntries([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedParty]);
 
   const [config, setConfig] = useState({
     showVoucherNo: true,
@@ -514,6 +553,46 @@ const [showPrinting, setShowPrinting] =
     (acc, item) => acc + item.cr,
     0
   );
+
+  const safePartyName = (selectedParty?.name || "Party")
+    .replace(/[^A-Za-z0-9\s-]/g, "")
+    .replace(/\s+/g, "_");
+
+  const preview = () => previewLedgerReport({
+    title: "Vendor Ledger",
+    party: selectedParty,
+    entries: ledgerEntries,
+    config,
+    totalDr,
+    totalCr
+  });
+
+  const print = () => printLedgerReport({
+    title: "Vendor Ledger",
+    party: selectedParty,
+    entries: ledgerEntries,
+    config,
+    totalDr,
+    totalCr
+  });
+
+  const excel = () => exportLedgerExcel({
+    filename: `${safePartyName}_Ledger.xlsx`,
+    entries: ledgerEntries,
+    config,
+    totalDr,
+    totalCr
+  });
+
+  const pdf = () => exportLedgerPDF({
+    filename: `${safePartyName}_Ledger.pdf`,
+    title: "Vendor Ledger",
+    party: selectedParty,
+    entries: ledgerEntries,
+    config,
+    totalDr,
+    totalCr
+  });
 
   return (
     <div className={`main ${collapsed ? "collapsed" : ""}`}>
@@ -613,7 +692,7 @@ const [showPrinting, setShowPrinting] =
 
                 <div
                   className={`vendor-balance ${
-                    party.balance >= 0
+                    (party.balance ?? 0) >= 0
                       ? "positive"
                       : "negative"
                   }`}
@@ -621,7 +700,7 @@ const [showPrinting, setShowPrinting] =
 
                   ₹
                   {Math.abs(
-                    party.balance
+                    party.balance ?? 0
                   ).toLocaleString()}
 
                 </div>
@@ -961,22 +1040,22 @@ const [showPrinting, setShowPrinting] =
 
             <div className="vendor-actions">
 
-              <button>
+              <button onClick={preview}>
                 <Eye size={15} />
                 Preview
               </button>
 
-              <button>
+              <button onClick={excel}>
                 <FileSpreadsheet size={15} />
                 Excel
               </button>
 
-              <button>
+              <button onClick={pdf}>
                 <FileText size={15} />
                 PDF
               </button>
 
-              <button>
+              <button onClick={print}>
                 <Printer size={15} />
                 Print
               </button>

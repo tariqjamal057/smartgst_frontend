@@ -37,6 +37,13 @@ export const createItemCategory = (data) => api.post("/accounting/item-categorie
 export const updateItemCategory = (id, data) => api.patch(`/accounting/item-categories/${id}/`, data);
 export const deleteItemCategory = (id) => api.delete(`/accounting/item-categories/${id}/`);
 
+// ─── Godowns ───
+export const getGodowns = (params) =>
+  api.get("/accounting/godowns/", { params: buildParams(params) });
+export const createGodown = (data) => api.post("/accounting/godowns/", data);
+export const updateGodown = (id, data) => api.patch(`/accounting/godowns/${id}/`, data);
+export const deleteGodown = (id) => api.delete(`/accounting/godowns/${id}/`);
+
 // ─── Items ───
 export const getItems = (params) =>
   api.get("/accounting/items/", { params: buildParams(params) });
@@ -50,6 +57,17 @@ export const getInvoiceSettings = (params) =>
   api.get("/accounting/invoice-settings/", { params: buildParams(params) });
 export const createInvoiceSetting = (data) => api.post("/accounting/invoice-settings/", data);
 export const updateInvoiceSetting = (id, data) => api.patch(`/accounting/invoice-settings/${id}/`, data);
+
+// ─── Invoice Preferences ───
+export const getInvoicePreferences = () => api.get("/accounting/invoice-preferences/");
+export const updateInvoicePreferences = (id, data) => api.patch(`/accounting/invoice-preferences/${id}/`, data);
+
+// ─── Invoice Books ───
+export const getInvoiceBooks = (params) =>
+  api.get("/accounting/invoice-books/", { params: buildParams(params) });
+export const createInvoiceBook = (data) => api.post("/accounting/invoice-books/", data);
+export const updateInvoiceBook = (id, data) => api.patch(`/accounting/invoice-books/${id}/`, data);
+export const deleteInvoiceBook = (id) => api.delete(`/accounting/invoice-books/${id}/`);
 
 // ─── Sales Invoices ───
 export const getSalesInvoices = (params) =>

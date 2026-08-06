@@ -13,6 +13,12 @@ import {
   BadgeIndianRupee,
   ReceiptText
 } from "lucide-react";
+import {
+  previewLedgerReport,
+  printLedgerReport,
+  exportLedgerExcel,
+  exportLedgerPDF
+} from "../utils/ledgerReport";
 import "../styles/VendorLedger.css";
 
 
@@ -31,9 +37,13 @@ const VendorLedger = () => {
     (async () => {
       try {
         const res = await services.getParties({ type: "customer" });
-        if (Array.isArray(res.data) && res.data.length > 0) {
-          setParties(res.data);
-          setSelectedParty(res.data[0]);
+        const data = res.data.results || res.data || [];
+        const list = Array.isArray(data) ? data : [];
+        setParties(list);
+        if (list.length > 0) {
+          setSelectedParty(list[0]);
+        } else {
+          setSelectedParty(null);
         }
       } catch {
         setParties([]);
@@ -43,6 +53,36 @@ const VendorLedger = () => {
       }
     })();
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const account = selectedParty?.account;
+    if (!account) {
+      setEntries([]);
+      return undefined;
+    }
+    (async () => {
+      try {
+        const res = await services.getLedgerEntries({ account });
+        if (cancelled) return;
+        const data = Array.isArray(res.data) ? res.data : [];
+        setEntries(data.map((e) => ({
+          date: e.date,
+          ledger: e.account,
+          narration: e.narration || "",
+          voucherType: e.voucher_type || "",
+          voucherNo: e.voucher_no || "",
+          invoiceNo: e.invoice_no || "",
+          dr: e.debit || 0,
+          cr: e.credit || 0,
+          balance: e.balance || 0,
+        })));
+      } catch {
+        if (!cancelled) setEntries([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedParty]);
 
   const [config, setConfig] = useState({
     showVoucherNo: true,
@@ -107,6 +147,46 @@ const [showPrinting, setShowPrinting] =
     0
   );
 
+  const safePartyName = (selectedParty?.name || "Party")
+    .replace(/[^A-Za-z0-9\s-]/g, "")
+    .replace(/\s+/g, "_");
+
+  const preview = () => previewLedgerReport({
+    title: "Customer Ledger",
+    party: selectedParty,
+    entries,
+    config,
+    totalDr,
+    totalCr
+  });
+
+  const print = () => printLedgerReport({
+    title: "Customer Ledger",
+    party: selectedParty,
+    entries,
+    config,
+    totalDr,
+    totalCr
+  });
+
+  const excel = () => exportLedgerExcel({
+    filename: `${safePartyName}_Ledger.xlsx`,
+    entries,
+    config,
+    totalDr,
+    totalCr
+  });
+
+  const pdf = () => exportLedgerPDF({
+    filename: `${safePartyName}_Ledger.pdf`,
+    title: "Customer Ledger",
+    party: selectedParty,
+    entries,
+    config,
+    totalDr,
+    totalCr
+  });
+
   return (
     <div className={`main ${collapsed ? "collapsed" : ""}`}>
 
@@ -141,7 +221,7 @@ const [showPrinting, setShowPrinting] =
 
         <div >
 
-         <button className="vendor-btn" onClick={() => navigate("/Ledger",{state: { defaultGroup: "Sundry Creditors" } })}> + Create Customer</button>
+         <button className="vendor-btn" onClick={() => navigate("/Ledger",{state: { defaultGroup: "Sundry Debtors" } })}> + Create Customer</button>
 
         </div>
 
@@ -207,7 +287,7 @@ const [showPrinting, setShowPrinting] =
 
                 <div
                   className={`vendor-balance ${
-                    party.balance >= 0
+                    (party.balance ?? 0) >= 0
                       ? "positive"
                       : "negative"
                   }`}
@@ -215,7 +295,7 @@ const [showPrinting, setShowPrinting] =
 
                   ₹
                   {Math.abs(
-                    party.balance
+                    party.balance ?? 0
                   ).toLocaleString()}
 
                 </div>
@@ -420,7 +500,7 @@ const [showPrinting, setShowPrinting] =
               <div className="vendor-preview-balance">
                 <BadgeIndianRupee size={18} />
                 ₹
-                {selectedParty.balance.toLocaleString()}
+                {(selectedParty.balance ?? 0).toLocaleString()}
               </div>
             </div>
             {/* TABLE */}
@@ -568,22 +648,22 @@ const [showPrinting, setShowPrinting] =
 
             <div className="vendor-actions">
 
-              <button>
+              <button onClick={preview}>
                 <Eye size={15} />
                 Preview
               </button>
 
-              <button>
+              <button onClick={excel}>
                 <FileSpreadsheet size={15} />
                 Excel
               </button>
 
-              <button>
+              <button onClick={pdf}>
                 <FileText size={15} />
                 PDF
               </button>
 
-              <button>
+              <button onClick={print}>
                 <Printer size={15} />
                 Print
               </button>

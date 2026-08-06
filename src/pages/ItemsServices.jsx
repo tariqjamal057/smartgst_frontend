@@ -33,21 +33,36 @@ export default function ItemsServices() {
           name: item.name,
           purchasePrice: item.purchase_price ?? 0,
           salePrice: item.sale_price ?? 0,
-          stockQty: item.opening_stock ?? 0,
+          stockQty: item.opening_quantity ?? 0,
           unit: item.primary_unit || "",
-          godown: item.godown || "",
+          godown: item.location || "",
           category: item.category || "",
           type: item.type || "",
           transactions: item.transactions || [],
         }));
         setProducts(mapped);
         setCategoryList(cats.map((c) => c.name));
+        setCategories(cats);
       } catch (err) {
         console.error("Failed to load items:", err);
       } finally {
         setLoading(false);
       }
     })();
+  }, []);
+
+  const fetchGodowns = async () => {
+    try {
+      const res = await services.getGodowns();
+      const data = res.data.results || res.data || [];
+      setGodownList(data.map((g) => g.name));
+    } catch (err) {
+      console.error("Failed to load godowns:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchGodowns();
   }, []);
 
   /* ================= FILTER PRODUCTS ================= */
@@ -89,21 +104,30 @@ export default function ItemsServices() {
 
   const handleAdd = async () => {
     try {
+      const category = categories.find((c) => c.name === newProduct.category);
+      const unit = ["NONE", "BOX", "BAG", "BOTTLE", "BUNDLES"].includes(
+        (newProduct.unit || "").toUpperCase()
+      )
+        ? (newProduct.unit || "").toUpperCase()
+        : "NONE";
+      const gstTypeMap = {
+        "Taxable": "GST",
+        "Non-GST": "EXEMPT",
+        "Nil Rated": "EXEMPT",
+        "Exempt": "EXEMPT",
+      };
       await services.createItem({
         name: newProduct.name,
-        purchase_price: Number(newProduct.purchasePrice),
-        sale_price: Number(newProduct.salePrice),
-        opening_stock: Number(newProduct.stockQty),
-        primary_unit: newProduct.unit || "PCS",
-        category: newProduct.category || "",
-        type: newProduct.type || "",
-        hsn: newProduct.hsn || "",
-        description: newProduct.description || "",
-        gst_rate: newProduct.rate || "",
-        taxability: newProduct.taxability || "",
-        opening_qty: openingQty || "",
-        opening_rate: openingRate || "",
-        opening_amount: openingAmount || "",
+        purchase_price: Number(newProduct.purchasePrice) || 0,
+        sale_price: Number(newProduct.salePrice) || 0,
+        opening_quantity: Number(openingQty || newProduct.stockQty) || 0,
+        primary_unit: unit,
+        category: category ? category.id : null,
+        hsn_code: newProduct.hsn || "",
+        gst_value: newProduct.rate ? Number(newProduct.rate) : null,
+        gst_type: gstTypeMap[newProduct.taxability] || "GST",
+        at_price: openingRate ? Number(openingRate) : null,
+        location: newProduct.godown || "",
       });
       const res = await services.getItems();
       const items = res.data.results || res.data || [];
@@ -112,9 +136,9 @@ export default function ItemsServices() {
         name: item.name,
         purchasePrice: item.purchase_price ?? 0,
         salePrice: item.sale_price ?? 0,
-        stockQty: item.opening_stock ?? 0,
+        stockQty: item.opening_quantity ?? 0,
         unit: item.primary_unit || "",
-        godown: item.godown || "",
+        godown: item.location || "",
         category: item.category || "",
         type: item.type || "",
         transactions: item.transactions || [],
@@ -197,6 +221,7 @@ const saveCategory = async () => {
     const res = await services.getItemCategories();
     const cats = res.data.results || res.data || [];
     setCategoryList(cats.map((c) => c.name));
+    setCategories(cats);
   } catch (err) {
     console.error("Failed to create category:", err);
   }
@@ -213,6 +238,7 @@ const saveCategory = async () => {
 
 };
 const [categoryList, setCategoryList] = useState([]);
+const [categories, setCategories] = useState([]);
 const [newGodown, setNewGodown] = useState({
   name: "",
   address: ""
@@ -1214,14 +1240,19 @@ const [openingAmount, setOpeningAmount] = useState("");
               </button>
               <button
                 className="save"
-                onClick={() => {
+                onClick={async () => {
                   if (
                     newGodown.name.trim()
                   ) {
-                    setGodownList([
-                      ...godownList,
-                      newGodown.name
-                    ]);
+                    try {
+                      await services.createGodown({
+                        name: newGodown.name,
+                        address: newGodown.address
+                      });
+                      await fetchGodowns();
+                    } catch (err) {
+                      console.error("Failed to create godown:", err);
+                    }
                     setSelectedGodown(
                       newGodown.name
                     );
