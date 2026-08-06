@@ -740,6 +740,45 @@
   background: #dbeafe;
 }
 
+.sale-search-box {
+  position: relative;
+}
+.customer-search-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  max-height: 220px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  z-index: 50;
+  margin-top: 4px;
+}
+.customer-search-option {
+  padding: 8px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid #f3f4f6;
+}
+.customer-search-option:hover {
+  background: #eff6ff;
+}
+.customer-search-name {
+  font-size: 14px;
+  color: #111827;
+}
+.customer-search-gstin {
+  font-size: 12px;
+  color: #6b7280;
+}
+.customer-search-empty {
+  padding: 12px;
+  font-size: 13px;
+  color: #6b7280;
+}
+
 /* Customer Details Container */
 .customer-details-container {
   display: grid;

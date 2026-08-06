@@ -1,4 +1,4 @@
-import { useState,useEffect } from "react";
+import { useState,useEffect,useMemo } from "react";
 import { useOutletContext,useNavigate } from "react-router-dom";
 import { FaTrash ,FaSearch,FaUniversity,FaTruck,FaPen,FaSave,
   FaPaperPlane,
@@ -24,21 +24,31 @@ export default function SaleOrder() {
 
   /* ================= CUSTOMER ================= */
    const [billedTo, setBilledTo] = useState({
-  name: "SALVIA GRAFICS PVT LTD",
-  address: "2652/F Kuti Choraha, Near PVS Mall, Garh Road",
-  contact: "Vikram Singh",
-  mobile: "9897012345",
-  gstin: "09ABMCS5888A12U",
-  pos: "09-Uttar Pradesh"
+  name: "",
+  address: "",
+  contact: "",
+  mobile: "",
+  gstin: "",
+  pos: ""
 });
   const [shippedTo, setShippedTo] = useState({
-  name: "SALVIA GRAFICS PVT LTD",
-  address: "2652/F Kuti Choraha, Near PVS Mall, Garh Road",
-  contact: "Vikram Singh",
-  mobile: "9897012345",
-  gstin: "09ABMCS5888A12U",
-  pos: "09-Uttar Pradesh"
+  name: "",
+  address: "",
+  contact: "",
+  mobile: "",
+  gstin: "",
+  pos: ""
 });
+
+  const [customers, setCustomers] = useState([]);
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const [selectedParty, setSelectedParty] = useState(null);
+  const [itemsList, setItemsList] = useState([]);
+  const [transporters, setTransporters] = useState([]);
+  const [transporter, setTransporter] = useState("");
+  const [portOfExport, setPortOfExport] = useState("");
+  const [narration, setNarration] = useState("");
 
   /* ================= TERMS ================= */
   const [paymentTerms, setPaymentTerms] = useState("");
@@ -48,10 +58,12 @@ export default function SaleOrder() {
   const [items, setItems] = useState([
   {
     id: Date.now(),
-    desc: "",
+    itemId: null,
+    description: "",
+    hsn: "",
     qty: "",
-    rate: "",
-    tax: "0"
+    price: "",
+    gst: "0"
   }
 ]);
 
@@ -60,12 +72,12 @@ export default function SaleOrder() {
       ...items,
       {
         id: Date.now() + Math.random(),
-        product: "",
+        itemId: null,
         description: "",
         hsn: "",
         qty: "",
-        rate: "",
-        tax: "0"
+        price: "",
+        gst: "0"
       }
     ]);
   };
@@ -163,31 +175,129 @@ export default function SaleOrder() {
       setGstError("");
     }
   };
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [custRes, itemRes, vendRes] = await Promise.all([
+          services.getParties({ type: "customer" }),
+          services.getItems({}),
+          services.getParties({ type: "vendor" })
+        ]);
+        const cust = Array.isArray(custRes.data) ? custRes.data : custRes.data?.results ?? [];
+        const itm = Array.isArray(itemRes.data) ? itemRes.data : itemRes.data?.results ?? [];
+        const vend = Array.isArray(vendRes.data) ? vendRes.data : vendRes.data?.results ?? [];
+        setCustomers(cust);
+        setItemsList(itm);
+        setTransporters(vend);
+      } catch (e) {
+        console.error("Failed to load data:", e);
+      }
+    })();
+  }, []);
+
+  const filteredCustomers = useMemo(() => {
+    const q = customerSearch.trim().toLowerCase();
+    if (!q) return customers;
+    return customers.filter((c) =>
+      (c.name || "").toLowerCase().includes(q) ||
+      (c.gstin || "").toLowerCase().includes(q)
+    );
+  }, [customers, customerSearch]);
+
+  const selectCustomer = (cust) => {
+    setSelectedParty(cust);
+    setCustomerSearch(cust.name);
+    setShowCustomerDropdown(false);
+    const billed = {
+      name: cust.name || "",
+      address: cust.billing_address || "",
+      contact: cust.contact || "",
+      mobile: cust.phone || "",
+      gstin: cust.gstin || "",
+      pos: cust.state || ""
+    };
+    setBilledTo(billed);
+    setShippedTo(billed);
+  };
+
+  const resetForm = () => {
+    setItems([{ id: Date.now(), itemId: null, description: "", hsn: "", qty: "", price: "", gst: "0" }]);
+    setSelectedParty(null);
+    setCustomerSearch("");
+    setShowCustomerDropdown(false);
+    setBilledTo({ name: "", address: "", contact: "", mobile: "", gstin: "", pos: "" });
+    setShippedTo({ name: "", address: "", contact: "", mobile: "", gstin: "", pos: "" });
+    setTransporter("");
+    setPortOfExport("");
+    setNarration("");
+    setPaymentTerms("");
+    setSoTerms("");
+  };
   
 
-  const handleSave = async () => {
+  const handleSave = async (mode = "save") => {
+    const line = (i) => {
+      const qty = Number(i.qty) || 0;
+      const price = Number(i.price) || 0;
+      const gst = Number(i.gst) || 0;
+      const taxable = qty * price;
+      const gstAmt = (taxable * gst) / 100;
+      return {
+        item: i.itemId || null,
+        quantity: qty,
+        unit: "NONE",
+        price,
+        discount_percentage: 0,
+        discount_amount: 0,
+        taxable_value: taxable,
+        gst_rate: gst,
+        cgst: gstAmt / 2,
+        sgst: gstAmt / 2,
+        igst: 0,
+        cess: 0,
+        amount: taxable + gstAmt
+      };
+    };
+    const lines = items.map(line);
+    const sub = lines.reduce((s, l) => s + l.taxable_value, 0);
+    const totalGst = lines.reduce((s, l) => s + l.cgst + l.sgst, 0);
+    const total = sub + totalGst;
     const payload = {
-      so_no: soNo,
-      date: soDate.toISOString(),
-      type: soType,
-      buyer,
-      billed_to: billedTo,
-      shipped_to: shippedTo,
+      order_number: soNo,
+      date: soDate.toISOString().split("T")[0],
+      party: selectedParty?.id || null,
+      billing_address: [billedTo.name, billedTo.address].filter(Boolean).join(", "),
+      shipping_address: [shippedTo.name, shippedTo.address].filter(Boolean).join(", "),
+      state_of_supply: billedTo.pos || selectedParty?.state || "",
+      supply_type: "REGULAR",
+      narration,
+      total_amount: total,
+      round_off: 0,
+      status: "PENDING",
       payment_terms: paymentTerms,
-      so_terms: soTerms,
-      items: items.map(({ id, ...rest }) => rest),
-      subtotal,
-      total_gst: totalGST,
-      cgst,
-      sgst,
-      grand_total: total,
+      delivery_date: shippingDate.toISOString().split("T")[0],
+      items: lines
     };
     try {
       setSaving(true);
-      await services.createSaleOrder(payload);
+      const res = await services.createSaleOrder(payload);
       alert("Sale Order saved successfully!");
+      setCurrentCount((prev) => prev + 1);
+      if (mode === "print") window.print();
+      if (mode === "send") alert("Sale Order saved! (send configured later)");
+      resetForm();
     } catch (err) {
-      alert("Error saving Sale Order: " + (err.response?.data?.detail || err.message));
+      const data = err.response?.data;
+      const detail =
+        (typeof data === "string" && data) ||
+        (Array.isArray(data) && data[0]) ||
+        data?.detail ||
+        data?.order_number?.[0] ||
+        data?.financial_year?.[0] ||
+        JSON.stringify(data) ||
+        err.message;
+      alert("Error saving Sale Order: " + detail);
     } finally {
       setSaving(false);
     }
@@ -463,15 +573,18 @@ export default function SaleOrder() {
                 <h3>Dispatch Details</h3>
               </div>
             {/* <h2>Dispatch Details</h2> */}
-              <div className="transporter-box">
+                <div className="transporter-box">
                 <label>Transporter Name</label>
                 <div className="transporter-row"> 
-                  <select>
-                    <option>Select</option>
+                  <select value={transporter} onChange={(e) => setTransporter(e.target.value)}>
+                    <option value="">Select</option>
+                    {transporters.map((t) => (
+                      <option key={t.id} value={t.name}>{t.name}</option>
+                    ))}
                   </select>
                   <button
                     className="so-transporter-create-btn"
-                    onClick={() => navigate("/Ledger")}
+                    onClick={() => navigate("/Ledger", { state: { defaultGroup: "Sundry Creditors" } })}
                   >
                     Create
                   </button>
@@ -494,7 +607,7 @@ export default function SaleOrder() {
                 {/* SUCCESS */}
                 {gstData && (
                   <div className="gst-result-box">
-                    <p><strong>{gstData.name}</strong></p>
+                    <p><strong>{gstData.company_name}</strong></p>
                     <p>{gstData.state}</p>
                     <p>Status: {gstData.status}</p>
                   </div>
@@ -554,11 +667,7 @@ export default function SaleOrder() {
                   <>
                   <div className="port">
                     <label>Port of Export</label>
-                    <select>
-                      <option>Select</option>
-                      <option>INDEA6 - AACHIVS SEZ/NOIDA </option>
-                    </select>
-                    {/* <input placeholder="Port No." /> */}
+                    <input placeholder="Port No." value={portOfExport} onChange={(e) => setPortOfExport(e.target.value)} />
                   </div>
                   {/* <div className="country">
                     <label>Country Name</label>
@@ -631,11 +740,34 @@ export default function SaleOrder() {
                   <input
                     className="so-input"
                     placeholder="Search Supplier"
+                    value={customerSearch}
+                    onChange={(e) => {
+                      setCustomerSearch(e.target.value);
+                      setShowCustomerDropdown(true);
+                    }}
+                    onFocus={() => setShowCustomerDropdown(true)}
                   />
-                  <button className="so-add-btn">
+                  <button className="so-add-btn" onClick={() => navigate("/Ledger", { state: { defaultGroup: "Sundry Debtors" } })}>
                     Add New
                   </button>
                 </div>
+                {showCustomerDropdown && (
+                  <div className="so-customer-search-dropdown">
+                    {filteredCustomers.length === 0 && (
+                      <div className="so-customer-search-empty">No customers found</div>
+                    )}
+                    {filteredCustomers.map((cust) => (
+                      <div
+                        key={cust.id}
+                        className="so-customer-search-option"
+                        onClick={() => selectCustomer(cust)}
+                      >
+                        <div className="so-customer-search-name">{cust.name}</div>
+                        <div className="so-customer-search-gstin">{cust.gstin || ""}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 <div className="so-party-details">
                   <div className="so-detail-row">
@@ -683,6 +815,12 @@ export default function SaleOrder() {
                 <input
                     className="so-input"
                     placeholder="Search Supplier"
+                    value={customerSearch}
+                    onChange={(e) => {
+                      setCustomerSearch(e.target.value);
+                      setShowCustomerDropdown(true);
+                    }}
+                    onFocus={() => setShowCustomerDropdown(true)}
                   />
               </div>
 
@@ -751,6 +889,11 @@ export default function SaleOrder() {
             </div>
 
             <table className="so-table">
+              <datalist id="so-items-datalist">
+                {itemsList.map((it) => (
+                  <option key={it.id} value={it.name} />
+                ))}
+              </datalist>
               <thead>
                 <tr>
                   <th></th>
@@ -786,8 +929,14 @@ export default function SaleOrder() {
                           <FaTrash />
                         </button>
                       </td>
-                      <td><input className="so-input" onChange={(e) => handleChange(i, "description", e.target.value)} /></td>
-                      <td><input className="so-input" onChange={(e) => handleChange(i, "hsn", e.target.value)} /></td>
+                      <td><input className="so-input" list="so-items-datalist" value={item.description} onChange={(e) => {
+                        const val = e.target.value;
+                        const match = itemsList.find((it) => it.name === val);
+                        handleChange(i, "description", val);
+                        handleChange(i, "itemId", match ? match.id : null);
+                        handleChange(i, "hsn", match ? match.hsn_code || "" : "");
+                      }} /></td>
+                      <td><input className="so-input" value={item.hsn} onChange={(e) => handleChange(i, "hsn", e.target.value)} /></td>
                       <td><input className="so-input" type="number" onChange={(e) => handleChange(i, "qty", e.target.value)} /></td>
                       <td><input className="so-input" type="number" onChange={(e) => handleChange(i, "price", e.target.value)} /></td>
                       <td>
@@ -813,7 +962,7 @@ export default function SaleOrder() {
 
             <div className="so-notes">
               <label>Narration</label>
-              <textarea className="so-textarea" />
+              <textarea className="so-textarea" value={narration} onChange={(e) => setNarration(e.target.value)} />
             </div>
 
             <div className="so-summary-box">
@@ -850,22 +999,22 @@ export default function SaleOrder() {
           {/* ================= ACTIONS ================= */}
           <div className="po-footer-actions">
 
-            <button className="po-save-btn" onClick={handleSave} disabled={saving}>
+            <button className="po-save-btn" onClick={() => handleSave("save")} disabled={saving}>
               <i className="fas fa-save"></i>
               {saving ? "Saving..." : "Save"}
             </button>
 
-            <button className="po-print-btn">
+            <button className="po-print-btn" onClick={() => handleSave("print")}>
               <i className="fas fa-print"></i>
               Save & Print
             </button>
 
-            <button className="po-send-btn">
+            <button className="po-send-btn" onClick={() => handleSave("send")}>
               <i className="fas fa-paper-plane"></i>
               Save & Send
             </button>
 
-            <button className="po-cancel-btn">
+            <button className="po-cancel-btn" onClick={resetForm}>
               <i className="fas fa-times"></i>
               Cancel
             </button>

@@ -1,4 +1,4 @@
-  import { useState, useRef, useEffect } from "react";
+  import { useState, useRef, useEffect, useMemo } from "react";
   import { useOutletContext,useNavigate } from "react-router-dom";
   import { FaTrash, FaBuilding , FaLocationArrow,FaUniversity,FaTruck, FaBoxOpen,FaPen, FaSearch,FaSave,
   FaPaperPlane,
@@ -7,7 +7,6 @@
   import DatePicker from "react-datepicker";
   import "react-datepicker/dist/react-datepicker.css";
   import "../styles/SalesInvoice.css";
-  import api from "../api/axios";
   import { loadData, saveData } from "../api/connector";
   import * as services from "../api/services";
 
@@ -30,6 +29,14 @@
     const [rcmApplicable, setRcmApplicable] = useState(false);
 
     const [openGroupDropdown, setOpenGroupDropdown] = useState(false);
+    const [customers, setCustomers] = useState([]);
+    const [itemsList, setItemsList] = useState([]);
+    const [salesmen, setSalesmen] = useState([]);
+    const [salesman, setSalesman] = useState("");
+    const [orders, setOrders] = useState([]);
+    const [orderNo, setOrderNo] = useState("");
+    const [customerSearch, setCustomerSearch] = useState("");
+    const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
 
     const [ledger, setLedger] = useState({
       gstin: "",
@@ -53,16 +60,51 @@
     }));
   }, []);
 
+  useEffect(() => {
+    (async () => {
+      try {
+        const [custRes, itemRes, vendRes, ordRes] = await Promise.all([
+          services.getParties({ type: "customer" }),
+          services.getItems({}),
+          services.getParties({ type: "vendor" }),
+          services.getSaleOrders({})
+        ]);
+        const cust = Array.isArray(custRes.data) ? custRes.data : custRes.data?.results ?? [];
+        const itm = Array.isArray(itemRes.data) ? itemRes.data : itemRes.data?.results ?? [];
+        const vend = Array.isArray(vendRes.data) ? vendRes.data : vendRes.data?.results ?? [];
+        const ord = Array.isArray(ordRes.data) ? ordRes.data : ordRes.data?.results ?? [];
+        setCustomers(cust);
+        setItemsList(itm);
+        setSalesmen(vend);
+        setOrders(ord);
+      } catch (e) {
+        console.error("Failed to load customers/items:", e);
+      }
+    })();
+  }, []);
+
+  const handleOrderChange = (value) => {
+    setOrderNo(value);
+    const order = orders.find((o) => o.order_number === value);
+    if (order?.date) {
+      try {
+        setOrderDate(new Date(order.date));
+      } catch {
+        setOrderDate(new Date());
+      }
+    }
+  };
+
   const fetchGSTDetails = async (gstin) => {
   if (gstin.length !== 15) return;
   try {
-    const res = await api.get(`/gst/${gstin}/`);
+    const res = await services.lookupGst(gstin);
     const data = res.data;
     setLedger((prev) => ({
       ...prev,
-      name: data.name || "",
-      address1: data.address1 || "",
-      address2: data.address2 || "",
+      name: data.company_name || "",
+      address1: data.address || "",
+      address2: data.branch_address || "",
       state: data.state || ""
     }));
   } catch (err) {
@@ -72,30 +114,30 @@
 
     // ================= ITEMS =================
     const [items, setItems] = useState([
-      { description: "", hsn: "", qty: "", rate: "", discount: "", tax: "", amount: "" }
+      { description: "", itemId: null, hsn: "", qty: "", rate: "", discount: "", tax: "", amount: "" }
     ]);
     const ecoRef = useRef(null);
     // ================= CUSTOMER =================
   const [billedTo, setBilledTo] = useState({
-      name: "SALVIA GRAFICS PVT LTD",
-      address: "2652/F Kuti Choraha, Near PVS Mall, Garh Road",
-      city: "Meerut-250002",
-      contact: "Vikram Singh",
-      mobile: "9897012345",
-      pan: "ABMCS5888A",
-      gstin: "09ABMCS5888A12U",
-      pos: "09-Uttar Pradesh"
+      name: "",
+      address: "",
+      city: "",
+      contact: "",
+      mobile: "",
+      pan: "",
+      gstin: "",
+      pos: ""
     });
 
     const [shippedTo, setShippedTo] = useState({
-      name: "SALVIA GRAFICS PVT LTD",
-      address: "2652/F Kuti Choraha, Near PVS Mall, Garh Road",
-      city: "Meerut-250002",
-      contact: "Vikram Singh",
-      mobile: "9897012345",
-      pan: "ABMCS5888A",
-      gstin: "09ABMCS5888A12U",
-      pos: "09-Uttar Pradesh"
+      name: "",
+      address: "",
+      city: "",
+      contact: "",
+      mobile: "",
+      pan: "",
+      gstin: "",
+      pos: ""
     });
     // const [shippedTo, setShippedTo] = useState({ ...billedTo });
 
@@ -121,6 +163,7 @@ const [selectedState, setSelectedState] = useState("");
     const updated = items.filter((_, i) => i !== index);
     setItems(updated.length ? updated : [{
       description: "",
+      itemId: null,
       hsn: "",
       qty: "",
       rate: "",
@@ -143,54 +186,231 @@ const [selectedState, setSelectedState] = useState("");
     const number = String(voucherCount).padStart(2, "0");
     return `SAL-${number}`;
   };
-  const handleSave = async () => {
+  /* ==================== API HELPERS ==================== */
+  const mapSupplyType = (t) => {
+    if (t === "SEZ") return "SEZ";
+    if (t && t.indexOf("Export") === 0) return "EXPORT";
+    return "REGULAR";
+  };
+
+  const mapRegistrationToGstType = (reg) => {
+    const r = (reg || "").toLowerCase();
+    if (r.includes("composition")) return "REGISTERED_BUSINESS_COMPOSITION";
+    if (r.includes("regular") || r.includes("sez") || r.includes("export") || r.includes("e-commerce") || r.includes("distributor")) return "REGISTERED_BUSINESS_REGULAR";
+    return "UNREGISTERED";
+  };
+
+  const blankAddress = () => ({
+    name: "", address: "", city: "", contact: "", mobile: "", pan: "", gstin: "", pos: ""
+  });
+
+  const selectCustomer = (cust) => {
+    setCustomer(cust);
+    setCustomerSearch(cust.name);
+    setShowCustomerDropdown(false);
+    const billed = {
+      name: cust.name || "",
+      address: cust.billing_address || "",
+      city: "",
+      contact: cust.contact || "",
+      mobile: cust.phone || "",
+      pan: cust.pan || "",
+      gstin: cust.gstin || "",
+      pos: cust.state || ""
+    };
+    setBilledTo(billed);
+    setShippedTo({ ...billed });
+  };
+
+  const filteredCustomers = useMemo(() => {
+    const q = customerSearch.trim().toLowerCase();
+    if (!q) return customers;
+    return customers.filter((c) =>
+      (c.name || "").toLowerCase().includes(q) ||
+      (c.gstin || "").toLowerCase().includes(q)
+    );
+  }, [customers, customerSearch]);
+
+  const isValidGST = (gst) => {
+    const regex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[A-Z0-9]{1}Z[A-Z0-9]{1}$/;
+    return regex.test(gst);
+  };
+
+  const fetchGstForCustomer = async () => {
+    const gstin = (customer.gstin || "").trim().toUpperCase();
+    if (!isValidGST(gstin)) {
+      alert("Invalid GSTIN");
+      return;
+    }
+    try {
+      const res = await services.lookupGst(gstin);
+      const data = res.data;
+      if (data.success) {
+        setCustomer((prev) => ({
+          ...prev,
+          gstin: data.gstin || gstin,
+          name: data.company_name || prev.name,
+          address1: data.address || prev.address1,
+          address2: data.branch_address || prev.address2,
+          email: data.email || prev.email,
+          contact: data.contact_person || prev.contact,
+          mobile: data.contact_no || prev.mobile,
+          state: data.state || prev.state
+        }));
+        if (data.state) setSelectedState(data.state);
+      } else {
+        alert("GST not found");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("GST lookup failed: " + (error.response?.data?.detail || error.message));
+    }
+  };
+
+  const saveCustomer = async () => {
+    if (!customer.name || !customer.name.trim()) { alert("Party Name required"); return; }
+    const pan = (customer.pan || "").trim().toUpperCase();
+    if (pan && !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(pan)) { alert("Invalid PAN: must be 10 characters (e.g. ABCDE1234F)"); return; }
+    const gstin = (customer.gstin || "").trim().toUpperCase();
+    if (gstin && !isValidGST(gstin)) { alert("Invalid GSTIN"); return; }
+    try {
+      const res = await services.createParty({
+        name: customer.name.trim(),
+        party_type: "CUSTOMER",
+        gstin,
+        phone: customer.contact || "",
+        email: customer.email || "",
+        pan,
+        state: customer.state || "",
+        billing_address: [customer.address1, customer.address2, customer.pin].filter(Boolean).join(", "),
+        gst_type: mapRegistrationToGstType(customer.registration)
+      });
+      const created = res.data;
+      setCustomers((prev) => [...prev, created]);
+      selectCustomer(created);
+      setShowCustomerPopup(false);
+      alert("Customer created successfully!");
+    } catch (err) {
+      const data = err.response?.data;
+      const msg =
+        (typeof data === "string" && data) ||
+        (Array.isArray(data) && data[0]) ||
+        data?.detail ||
+        data?.name?.[0] ||
+        err.message ||
+        "Failed to save customer";
+      alert(msg);
+    }
+  };
+
+  const resetForm = () => {
+    setItems([{ description: "", itemId: null, hsn: "", qty: "", rate: "", discount: "", tax: "", amount: "" }]);
+    setCustomer({});
+    setCustomerSearch("");
+    setShowCustomerDropdown(false);
+    setBilledTo(blankAddress());
+    setShippedTo(blankAddress());
+    setSalesman("");
+  };
+
+  const handleSave = async (mode = "save") => {
+    const line = (i) => {
+      const tax = rcmApplicable ? 0 : Number(i.tax) || 0;
+      let base, qty, rate, discount;
+      if (invoiceType === "item") {
+        qty = Number(i.qty) || 0;
+        rate = Number(i.rate) || 0;
+        discount = Number(i.discount) || 0;
+        base = qty * rate - discount;
+      } else {
+        qty = 0; rate = 0; discount = 0;
+        base = Number(i.amount) || 0;
+      }
+      const gst = (base * tax) / 100;
+      let igst = 0, cgst = 0, sgst = 0;
+      if (typeOfSupply === "Outward") { cgst = gst / 2; sgst = gst / 2; }
+      if (typeOfSupply === "Export_with_payment" || typeOfSupply === "SEZ") { igst = gst; }
+      return {
+        item: i.itemId || null,
+        mrp: rate,
+        quantity: qty,
+        unit: "NONE",
+        price: rate,
+        price_type: "WITHOUT_TAX",
+        discount_percentage: qty * rate > 0 ? Math.min(999.99, Number(((discount * 100) / (qty * rate)).toFixed(2))) : 0,
+        discount_amount: discount,
+        taxable_value: base,
+        gst_rate: tax,
+        cgst,
+        sgst,
+        igst,
+        cess: 0,
+        amount: base + gst
+      };
+    };
+
+    const lines = items.map(line);
+    const subtotal = lines.reduce((s, l) => s + l.taxable_value, 0);
+    const totalCgst = lines.reduce((s, l) => s + l.cgst, 0);
+    const totalSgst = lines.reduce((s, l) => s + l.sgst, 0);
+    const totalIgst = lines.reduce((s, l) => s + l.igst, 0);
+    const totalBeforeRound = subtotal + totalCgst + totalSgst + totalIgst;
+    const roundOff = Math.round(totalBeforeRound) - totalBeforeRound;
+    const grandTotal = totalBeforeRound + roundOff;
+
     const payload = {
       voucher_number: invoiceNo || generateInvoice(),
       date: invoiceDate.toISOString().split("T")[0],
       bill_date: invoiceDate.toISOString().split("T")[0],
       party: customer?.id || null,
-      state_of_supply: billedTo.pos?.split("-")[1] || "",
-      supply_type: typeOfSupply || "REGULAR",
-      billing_address: `${billedTo.name}, ${billedTo.address}, ${billedTo.city}`,
-      shipping_address: `${shippedTo.name}, ${shippedTo.address}, ${shippedTo.city}`,
+      state_of_supply: billedTo?.pos?.split("-")[1] || customer?.state || "",
+      supply_type: mapSupplyType(typeOfSupply),
+      billing_address: [billedTo?.name, billedTo?.address, billedTo?.city].filter(Boolean).join(", "),
+      shipping_address: [shippedTo?.name, shippedTo?.address, shippedTo?.city].filter(Boolean).join(", "),
       payment_type: { type: invoiceType, rcm: rcmApplicable },
-      round_off_amount: 0,
-      total_amount: items.reduce((s, i) => s + Number(i.amount || 0), 0),
-      total_taxable_amount: items.reduce((s, i) => s + (Number(i.amount || 0) - Number(i.tax || 0)), 0),
+      round_off_amount: roundOff,
+      total_taxable_amount: subtotal,
+      total_cgst: totalCgst,
+      total_sgst: totalSgst,
+      total_igst: totalIgst,
+      total_cess: 0,
+      total_amount: grandTotal,
       paid: 0,
-      balance: items.reduce((s, i) => s + Number(i.amount || 0), 0),
+      balance: grandTotal,
       description: "",
       eway_bill_no: dispatch?.ewayBill || "",
       transporter_name: dispatch?.transporter || "",
       vehicle_no: dispatch?.vehicle || "",
       lr_rr_no: dispatch?.lr || "",
       mode_of_transport: dispatch?.mode || "",
-      items: items.map(i => ({
-        item: null,
-        mrp: Number(i.rate || 0),
-        quantity: Number(i.qty || 0),
-        unit: "NONE",
-        price: Number(i.rate || 0),
-        price_type: "WITHOUT_TAX",
-        discount_percentage: Number(i.discount || 0),
-        discount_amount: (Number(i.rate || 0) * Number(i.qty || 0) * Number(i.discount || 0)) / 100,
-        taxable_value: Number(i.qty || 0) * Number(i.rate || 0) - (Number(i.rate || 0) * Number(i.qty || 0) * Number(i.discount || 0)) / 100,
-        gst_rate: Number(i.tax || 0),
-        cgst: Number(i.amount || 0) * Number(i.tax || 0) / 200,
-        sgst: Number(i.amount || 0) * Number(i.tax || 0) / 200,
-        igst: 0,
-        cess: 0,
-        amount: Number(i.amount || 0),
-      })),
+      items: lines
     };
     try {
       await saveData(services.createSalesInvoice, payload,
-        (data) => {
+        async (data) => {
           alert("Invoice saved successfully!");
-          setCurrentCount(prev => prev + 1);
-          setVoucherCount(prev => prev + 1);
+          setCurrentCount((prev) => prev + 1);
+          setVoucherCount((prev) => prev + 1);
+          if (mode === "send") {
+            try {
+              await services.postSalesInvoice(data.id);
+              alert("Invoice posted & sent successfully!");
+            } catch (e) {
+              alert("Invoice saved but posting failed.");
+            }
+          }
+          resetForm();
         },
-        (err) => alert(JSON.stringify(err))
+        (err) => {
+          const data = err?.response?.data || err;
+          const msg =
+            (typeof data === "string" && data) ||
+            (Array.isArray(data) && data[0]) ||
+            data?.detail ||
+            data?.non_field_errors?.[0] ||
+            JSON.stringify(data);
+          alert(msg || "Failed to save invoice");
+        }
       );
     } catch (e) { console.error(e); }
   };
@@ -209,7 +429,7 @@ const validateGST = async (value) => {
     setGstError("");
     setGstData(null);
 
-    const res = await api.get(`/gst/${value}/`);
+    const res = await services.lookupGst(value);
     setGstData(res.data);
   } catch (err) {
     setGstError("Error validating GSTIN");
@@ -270,6 +490,7 @@ const handleGSTChange = (e) => {
       ...items,
       {
         description: "",
+        itemId: null,
         hsn: "",
         qty: "",
         rate: "",
@@ -743,8 +964,13 @@ const handleGSTChange = (e) => {
               <div className="sale-grid">
                 <div className="sale-form-group">
                   <label>Order Number</label>
-                  <select>
-                    <option>Select</option>
+                  <select value={orderNo} onChange={(e) => handleOrderChange(e.target.value)}>
+                    <option value="">Select</option>
+                    {orders.map((o) => (
+                      <option key={o.id} value={o.order_number}>
+                        {o.order_number}{o.party ? ` - ${typeof o.party === "object" ? o.party.name : ""}` : ""}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div className="sale-form-group">
@@ -785,8 +1011,11 @@ const handleGSTChange = (e) => {
                 <div className="sale-form-group">
                   <label>Salesman/Agent</label>
                   <div className="eco-inline">
-                  <select>
-                    <option>Select</option>
+                  <select value={salesman} onChange={(e) => setSalesman(e.target.value)}>
+                    <option value="">Select</option>
+                    {salesmen.map((s) => (
+                      <option key={s.id} value={s.name}>{s.name}</option>
+                    ))}
                   </select>
                   <button
                       className="salesman-create-btn"
@@ -818,13 +1047,13 @@ const handleGSTChange = (e) => {
                         onChange={(e) => setDispatch(prev => ({ ...prev, transporter: e.target.value }))}
                       >
                         <option value="">Select</option>
-                        <option value="Self">Self</option>
-                        <option value="Roadways">Roadways</option>
-                        <option value="Railways">Railways</option>
+                        {salesmen.map((t) => (
+                          <option key={t.id} value={t.name}>{t.name}</option>
+                        ))}
                       </select>
                       <button
                         className="transporter-create-btn"
-                        onClick={() => navigate("/ledger")}
+                        onClick={() => navigate("/Ledger", { state: { defaultGroup: "Sundry Creditors" } })}
                       >
                         Create
                       </button>
@@ -847,7 +1076,7 @@ const handleGSTChange = (e) => {
                     {/* SUCCESS */}
                     {gstData && (
                       <div className="gst-result-box">
-                        <p><strong>{gstData.name}</strong></p>
+                        <p><strong>{gstData.company_name}</strong></p>
                         <p>{gstData.state}</p>
                         <p>Status: {gstData.status}</p>
                       </div>
@@ -985,7 +1214,16 @@ const handleGSTChange = (e) => {
                 <div className="sale-search-box">
                   <div className="sale-search-input-wrapper">
                     <FaSearch className="sale-search-icon" />
-                    <input type="text" placeholder="Search customer..." />
+                    <input
+                      type="text"
+                      placeholder="Search customer..."
+                      value={customerSearch}
+                      onChange={(e) => {
+                        setCustomerSearch(e.target.value);
+                        setShowCustomerDropdown(true);
+                      }}
+                      onFocus={() => setShowCustomerDropdown(true)}
+                    />
                   </div>
                   <button
                     className="new-customer-btn"
@@ -993,6 +1231,23 @@ const handleGSTChange = (e) => {
                   >
                     New Customer
                   </button>
+                  {showCustomerDropdown && (
+                    <div className="customer-search-dropdown">
+                      {filteredCustomers.length === 0 && (
+                        <div className="customer-search-empty">No customers found</div>
+                      )}
+                      {filteredCustomers.map((cust) => (
+                        <div
+                          key={cust.id}
+                          className="customer-search-option"
+                          onClick={() => selectCustomer(cust)}
+                        >
+                          <div className="customer-search-name">{cust.name}</div>
+                          <div className="customer-search-gstin">{cust.gstin || ""}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                  {showCustomerPopup && (
                   <div
                     className="cust-overlay"
@@ -1029,7 +1284,7 @@ const handleGSTChange = (e) => {
                               onChange={(e)=>setCustomer({...customer,gstin:e.target.value})}
                             />
 
-                            <button className="cust-get-btn">Get Data</button>
+                            <button className="cust-get-btn" onClick={fetchGstForCustomer}>Get Data</button>
                           </div>
 
                           <input className="cust-input" placeholder="Party Name"
@@ -1134,7 +1389,7 @@ const handleGSTChange = (e) => {
 
                       {/* ACTIONS */}
                       <div className="cust-actions">
-                        <button className="cust-save-btn">Save Customer</button>
+                        <button className="cust-save-btn" onClick={saveCustomer}>Save Customer</button>
                       </div>
 
                     </div>
@@ -1334,6 +1589,13 @@ const handleGSTChange = (e) => {
               </h2>
 
               {invoiceType === "item" ? (
+                <datalist id="items-datalist">
+                  {itemsList.map((it) => (
+                    <option key={it.id} value={it.name} />
+                  ))}
+                </datalist>
+              ) : null}
+              {invoiceType === "item" ? (
                 <table className="items-table">
                   <thead>
                     <tr>
@@ -1373,11 +1635,23 @@ const handleGSTChange = (e) => {
                             </button>
                           </td>
                           <td>{i + 1}</td>
-                          <td><input onChange={(e) => {
-                            const d = [...items]; d[i].description = e.target.value; setItems(d);
+                          <td><input list="items-datalist" value={item.description} onChange={(e) => {
+                            const d = [...items];
+                            const val = e.target.value;
+                            d[i].description = val;
+                            const match = itemsList.find((it) => it.name === val);
+                            if (match) {
+                              d[i].itemId = match.id;
+                              d[i].hsn = match.hsn_code || "";
+                            } else {
+                              d[i].itemId = null;
+                            }
+                            setItems(d);
                           }} /></td>
 
-                          <td><input /></td>
+                          <td><input value={item.hsn} onChange={(e) => {
+                            const d = [...items]; d[i].hsn = e.target.value; setItems(d);
+                          }} /></td>
 
                           <td><input type="number" onChange={(e) => {
                             const d = [...items]; d[i].qty = e.target.value; setItems(d);
@@ -1596,22 +1870,22 @@ const handleGSTChange = (e) => {
             </div>
             {/* ================= ACTIONS ================= */}
             <div className="sale-footer-actions">
-              <button className="sale-save-btn">
+              <button className="sale-save-btn" onClick={() => handleSave("save")}>
                 <FaSave />
                 Save
               </button>
 
-              <button className="sale-save-send-btn">
+              <button className="sale-save-send-btn" onClick={() => handleSave("send")}>
                 <FaPaperPlane />
                 Save & Send
               </button>
 
-              <button className="sale-print-btn">
+              <button className="sale-print-btn" onClick={() => window.print()}>
                 <FaPrint />
                 Print
               </button>
 
-              <button className="sale-cancel-btn">
+              <button className="sale-cancel-btn" onClick={resetForm}>
                 <FaTimes />
                 Cancel
               </button>
