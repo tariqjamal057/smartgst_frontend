@@ -21,8 +21,9 @@ const LedgerBook = () => {
   const [ledgers, setLedgers] = useState([]);
   const [selectedLedger, setSelectedLedger] = useState(null);
   const [isLedgerDropdownOpen, setIsLedgerDropdownOpen] = useState(false);
-  const [fromDate, setFromDate] = useState('01-04-2025');
-  const [toDate, setToDate] = useState('31-03-2026');
+  const fyStartYear = new Date().getMonth() >= 3 ? new Date().getFullYear() : new Date().getFullYear() - 1;
+  const [fromDate, setFromDate] = useState(`01-04-${fyStartYear}`);
+  const [toDate, setToDate] = useState(`31-03-${fyStartYear + 1}`);
   const [showVancherNo, setShowVancherNo] = useState(true);
   const [showNarration, setShowNarration] = useState(false);
   const [showBillWise, setShowBillWise] = useState(false);
@@ -57,13 +58,20 @@ const LedgerBook = () => {
   }, []);
 
   // Fetch entries when ledger is selected
+  const toIsoDate = (value) => {
+    if (!value) return "";
+    const m = String(value).match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+    if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+    return String(value);
+  };
+
   const fetchLedgerEntries = async (ledger) => {
     try {
       setEntryLoading(true);
       const params = {
-        account: ledger.id || ledger.account || ledger.name,
-        from_date: fromDate,
-        to_date: toDate,
+        account: ledger.account || ledger.id,
+        from_date: toIsoDate(fromDate),
+        to_date: toIsoDate(toDate),
       };
       const res = await services.getLedgerEntries(params);
       const entries = res.data.results || res.data || [];

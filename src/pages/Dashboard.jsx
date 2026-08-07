@@ -109,6 +109,8 @@ export default function Dashboard() {
     setCompany(prev => ({ ...prev, companyName: selectedCompany }));
 
     (async () => {
+      let hasRecentEntries = false;
+
       try {
         const res = await services.getCompanySettings({});
         const list = Array.isArray(res.data) ? res.data : res.data?.results ?? [];
@@ -155,6 +157,17 @@ export default function Dashboard() {
         if (d.trend_stats) setTrendStats(d.trend_stats);
         if (Array.isArray(d.pending_receipts)) setPendingReceipts(d.pending_receipts);
         if (Array.isArray(d.pending_payments)) setPendingPayments(d.pending_payments);
+        if (Array.isArray(d.recent_entries) && d.recent_entries.length > 0) {
+          setRecentEntries(d.recent_entries.map(r => ({
+            date: r.date || "",
+            party: r.party || "",
+            voucherType: r.voucher_type || "",
+            voucherNo: r.voucher_no || "",
+            amountCr: r.amount_cr || "",
+            amountDr: r.amount_dr || "",
+          })));
+          hasRecentEntries = true;
+        }
       } catch {
         setSummaryData({
           totalSales: "—", totalPurchase: "—", directExp: "—", indirectExp: "—",
@@ -164,6 +177,8 @@ export default function Dashboard() {
           stockBalance: "—", stockIn: "—", stockOut: "—",
         });
       }
+
+      if (hasRecentEntries) return;
 
       try {
         const res = await services.getTransactions({});

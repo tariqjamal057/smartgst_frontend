@@ -31,7 +31,7 @@ export default function ItemsServices() {
         const mapped = items.map((item) => ({
           id: item.id,
           name: item.name,
-          purchasePrice: item.purchase_price ?? 0,
+          purchasePrice: item.purchase_price || item.at_price || 0,
           salePrice: item.sale_price ?? 0,
           stockQty: item.opening_quantity ?? 0,
           unit: item.primary_unit || "",
@@ -134,7 +134,7 @@ export default function ItemsServices() {
       const mapped = items.map((item) => ({
         id: item.id,
         name: item.name,
-        purchasePrice: item.purchase_price ?? 0,
+        purchasePrice: item.purchase_price || item.at_price || 0,
         salePrice: item.sale_price ?? 0,
         stockQty: item.opening_quantity ?? 0,
         unit: item.primary_unit || "",
@@ -477,7 +477,8 @@ const [openingAmount, setOpeningAmount] = useState("");
                     </span>
 
                     <span>
-                      {item.stockQty || 0} {item.unit}
+                      {item.stockQty || 0}
+                      {item.unit && item.unit.toUpperCase() !== "NONE" ? ` ${item.unit}` : ""}
                     </span>
 
                     <span>

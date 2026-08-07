@@ -7,8 +7,9 @@ import "../styles/CashBankBook.css";
 const CashBankBook = () => {
   const { collapsed } = useOutletContext();
   const [bookType, setBookType] = useState("both");
-  const [fromDate, setFromDate] = useState("2025-04-01");
-  const [toDate, setToDate] = useState("2026-03-31");
+  const fyStartYear = new Date().getMonth() >= 3 ? new Date().getFullYear() : new Date().getFullYear() - 1;
+  const [fromDate, setFromDate] = useState(`${fyStartYear}-04-01`);
+  const [toDate, setToDate] = useState(`${fyStartYear + 1}-03-31`);
   const [reconciliation, setReconciliation] = useState(false);
   const [reconDate, setReconDate] = useState("");
 
@@ -24,9 +25,9 @@ const CashBankBook = () => {
       const params = { from_date: fromDate, to_date: toDate };
       if (bookType !== "both") params.account_type = bookType;
 
-      const res = await services.getTransactions(params);
-      const results = res.data.results || res.data || [];
-      const transactions = Array.isArray(results) ? results : [];
+      const res = await services.getCashBankBook(params);
+      const payload = res.data || {};
+      const transactions = Array.isArray(payload.entries) ? payload.entries : [];
 
       const formatted = transactions.map((t) => ({
         date: t.date || t.transaction_date || "",
@@ -40,18 +41,9 @@ const CashBankBook = () => {
 
       setData(formatted);
 
-      // Build summary from accounts
-      const accountsRes = await services.getAccounts({ account_type: bookType === "both" ? "" : bookType });
-      const accounts = accountsRes.data.results || accountsRes.data || [];
-      const accountArray = Array.isArray(accounts) ? accounts : [];
-
-      const cashItems = accountArray
-        .filter(a => (a.account_type || "").toLowerCase() === "cash" || (a.name || "").toLowerCase().includes("cash"))
-        .map(a => ({ name: a.name, dr: Number(a.debit || a.dr || 0), cr: Number(a.credit || a.cr || 0) }));
-
-      const bankItems = accountArray
-        .filter(a => (a.account_type || "").toLowerCase() === "bank" || (a.name || "").toLowerCase().includes("bank"))
-        .map(a => ({ name: a.name, dr: Number(a.debit || a.dr || 0), cr: Number(a.credit || a.cr || 0) }));
+      const summary = payload.summary || { cash: [], bank: [] };
+      const cashItems = Array.isArray(summary.cash) ? summary.cash : [];
+      const bankItems = Array.isArray(summary.bank) ? summary.bank : [];
 
       setSummary({
         cash: { name: "Cash-in-Hand", items: cashItems.length > 0 ? cashItems : [{ name: "Cash", dr: 0, cr: 0 }] },

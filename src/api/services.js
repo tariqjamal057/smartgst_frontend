@@ -255,6 +255,8 @@ export const getBalanceSheet = (params) =>
   api.get("/accounting/reports/balance-sheet/", { params: buildParams(params) });
 export const getCashFlow = (params) =>
   api.get("/accounting/reports/cash-flow/", { params: buildParams(params) });
+export const getCashBankBook = (params) =>
+  api.get("/accounting/reports/cash-bank-book/", { params: buildParams(params) });
 
 // ─── Summary Reports ───
 export const getSaleSummary = (params) =>

@@ -7,8 +7,9 @@ import "../styles/DayBook.css";
 const DayBook = () => {
     const { collapsed } = useOutletContext();
   const [voucherType, setVoucherType] = useState("all");
-  const [fromDate, setFromDate] = useState("2024-04-01");
-  const [toDate, setToDate] = useState("2025-03-31");
+  const fyStartYear = new Date().getMonth() >= 3 ? new Date().getFullYear() : new Date().getFullYear() - 1;
+  const [fromDate, setFromDate] = useState(`${fyStartYear}-04-01`);
+  const [toDate, setToDate] = useState(`${fyStartYear + 1}-03-31`);
 
   const [data, setData] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -23,8 +24,8 @@ const DayBook = () => {
       const params = { from_date: fromDate, to_date: toDate };
       if (voucherType !== "all") params.voucher_type = voucherType;
 
-      const res = await services.getTransactions(params);
-      const results = res.data.results || res.data || [];
+      const res = await services.getDaybook(params);
+      const results = res.data.entries || res.data.results || res.data || [];
       const transactions = Array.isArray(results) ? results : [];
 
       const formatted = transactions.map((t) => ({
