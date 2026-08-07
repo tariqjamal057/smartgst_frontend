@@ -16,17 +16,21 @@ const CustomerVendorSummary = () => {
     (async () => {
       setLoading(true);
       try {
-        const res = await services.getCustomerVendorSummaryRpt({ period });
-        const rows = Array.isArray(res.data) ? res.data : res.data?.results ?? [];
+        const partyType = type === "customer" ? "CUSTOMER" : type === "vendor" ? "VENDOR" : "";
+        const res = await services.getCustomerVendorSummaryRpt({ party_type: partyType });
+        const payload = res.data || {};
+        const rows = Array.isArray(payload) ? payload : payload.parties ?? payload.results ?? [];
         setRawData(rows.map(r => ({
           name: r.party_name || r.name || "",
-          type: r.party_type || r.type || "Debtor",
-          unit: r.unit || "",
-          opening: r.opening_qty ?? r.opening ?? 0,
-          inward: r.inward_qty ?? r.inward ?? 0,
-          outward: r.outward_qty ?? r.outward ?? 0,
-          rate: r.avg_rate ?? r.rate ?? 0,
-          gst: r.gst_rate || r.gst || "",
+          type: (r.party_type || "").toUpperCase() === "VENDOR" ? "Creditor" : "Debtor",
+          gstin: r.gstin || "",
+          phone: r.phone || "",
+          email: r.email || "",
+          sales: r.total_sales ?? r.total_sales_amount ?? 0,
+          purchases: r.total_purchases ?? r.total_purchase_amount ?? 0,
+          salesBalance: r.sales_balance ?? 0,
+          purchasesBalance: r.purchases_balance ?? 0,
+          netBalance: r.net_balance ?? ((r.sales_balance ?? 0) - (r.purchases_balance ?? 0)),
         })));
       } catch {
         setRawData([]);
@@ -34,7 +38,7 @@ const CustomerVendorSummary = () => {
         setLoading(false);
       }
     })();
-  }, [period]);
+  }, [period, type]);
 
   const processed = useMemo(() => {
     let filtered = rawData.filter((d) => {
@@ -44,14 +48,10 @@ const CustomerVendorSummary = () => {
       return matchesSearch;
     });
 
-    let calculated = filtered.map((d) => {
-      const closingQty = d.opening + d.inward - d.outward;
-      const closingAmt = closingQty * d.rate;
-      const openingAmt = d.opening * d.rate;
-      const inwardAmt = d.inward * d.rate;
-      const outwardAmt = d.outward * d.rate;
-      return { ...d, closingQty, closingAmt, openingAmt, inwardAmt, outwardAmt };
-    });
+    let calculated = filtered.map((d) => ({
+      ...d,
+      closingAmt: d.netBalance,
+    }));
 
     if (sortConfig.key) {
       calculated.sort((a, b) => {
@@ -64,12 +64,12 @@ const CustomerVendorSummary = () => {
   }, [rawData, search, type, sortConfig]);
 
   const summaryStats = useMemo(() => {
-    const totalOpening = processed.reduce((sum, row) => sum + row.opening, 0);
-    const totalInward = processed.reduce((sum, row) => sum + row.inward, 0);
-    const totalOutward = processed.reduce((sum, row) => sum + row.outward, 0);
-    const totalClosing = processed.reduce((sum, row) => sum + row.closingQty, 0);
-    const totalValue = processed.reduce((sum, row) => sum + row.closingAmt, 0);
-    return { totalOpening, totalInward, totalOutward, totalClosing, totalValue };
+    const totalSales = processed.reduce((sum, row) => sum + row.sales, 0);
+    const totalPurchases = processed.reduce((sum, row) => sum + row.purchases, 0);
+    const netBalance = processed.reduce((sum, row) => sum + row.netBalance, 0);
+    const customerCount = processed.filter(d => d.type === "Debtor").length;
+    const vendorCount = processed.filter(d => d.type === "Creditor").length;
+    return { totalSales, totalPurchases, netBalance, customerCount, vendorCount };
   }, [processed]);
 
   const handleSort = (key) => {
@@ -104,29 +104,29 @@ const CustomerVendorSummary = () => {
           <div className="stat-card-compact">
             <div className="stat-icon-compact purple">{"\uD83D\uDCE6"}</div>
             <div className="stat-info-compact">
-              <span className="stat-label">Total Closing</span>
-              <strong>{summaryStats.totalClosing.toLocaleString()} Units</strong>
+              <span className="stat-label">Customers</span>
+              <strong>{summaryStats.customerCount}</strong>
             </div>
           </div>
           <div className="stat-card-compact">
             <div className="stat-icon-compact green">{"\uD83D\uDCB0"}</div>
             <div className="stat-info-compact">
-              <span className="stat-label">Total Value</span>
-              <strong>{"\u20B9"} {summaryStats.totalValue.toLocaleString("en-IN", { minimumFractionDigits: 0 })}</strong>
+              <span className="stat-label">Total Sales</span>
+              <strong>{"\u20B9"} {summaryStats.totalSales.toLocaleString("en-IN", { minimumFractionDigits: 0 })}</strong>
             </div>
           </div>
           <div className="stat-card-compact">
             <div className="stat-icon-compact blue">{"\uD83D\uDCE4"}</div>
             <div className="stat-info-compact">
-              <span className="stat-label">Total Inward</span>
-              <strong>{summaryStats.totalInward.toLocaleString()}</strong>
+              <span className="stat-label">Total Purchases</span>
+              <strong>{"\u20B9"} {summaryStats.totalPurchases.toLocaleString("en-IN", { minimumFractionDigits: 0 })}</strong>
             </div>
           </div>
           <div className="stat-card-compact">
             <div className="stat-icon-compact orange">{"\uD83D\uDCE5"}</div>
             <div className="stat-info-compact">
-              <span className="stat-label">Total Outward</span>
-              <strong>{summaryStats.totalOutward.toLocaleString()}</strong>
+              <span className="stat-label">Net Balance</span>
+              <strong>{"\u20B9"} {summaryStats.netBalance.toLocaleString("en-IN", { minimumFractionDigits: 0 })}</strong>
             </div>
           </div>
         </div>
@@ -146,7 +146,6 @@ const CustomerVendorSummary = () => {
               <option value="all">All Parties</option>
               <option value="customer">Customers Only</option>
               <option value="vendor">Vendors Only</option>
-              <option value="gst">GST Rate Wise</option>
             </select>
           </div>
           <div className="search-group-compact">
@@ -176,12 +175,12 @@ const CustomerVendorSummary = () => {
                   <tr>
                     <th onClick={() => handleSort("name")} className="sortable">Party Name {getSortIcon("name")}</th>
                     <th onClick={() => handleSort("type")} className="sortable">Type {getSortIcon("type")}</th>
-                    <th onClick={() => handleSort("unit")} className="sortable">Unit {getSortIcon("unit")}</th>
-                    <th onClick={() => handleSort("opening")} className="sortable numeric">Opening {getSortIcon("opening")}</th>
-                    <th onClick={() => handleSort("inward")} className="sortable numeric">Inward {getSortIcon("inward")}</th>
-                    <th onClick={() => handleSort("outward")} className="sortable numeric">Outward {getSortIcon("outward")}</th>
-                    <th onClick={() => handleSort("closingQty")} className="sortable numeric">Closing Qty {getSortIcon("closingQty")}</th>
-                    <th onClick={() => handleSort("closingAmt")} className="sortable numeric">Closing Amt {getSortIcon("closingAmt")}</th>
+                    <th>GSTIN</th>
+                    <th onClick={() => handleSort("sales")} className="sortable numeric">Total Sales {getSortIcon("sales")}</th>
+                    <th onClick={() => handleSort("purchases")} className="sortable numeric">Total Purchases {getSortIcon("purchases")}</th>
+                    <th onClick={() => handleSort("salesBalance")} className="sortable numeric">Sales Balance {getSortIcon("salesBalance")}</th>
+                    <th onClick={() => handleSort("purchasesBalance")} className="sortable numeric">Purchase Balance {getSortIcon("purchasesBalance")}</th>
+                    <th onClick={() => handleSort("netBalance")} className="sortable numeric">Net Balance {getSortIcon("netBalance")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -192,12 +191,12 @@ const CustomerVendorSummary = () => {
                       <tr key={i} className="data-row">
                         <td className="party-name">{row.name}</td>
                         <td>{getPartyTypeBadge(row.type)}</td>
-                        <td><span className="unit-pill">{row.unit}</span></td>
-                        <td className="numeric">{row.opening.toLocaleString()}</td>
-                        <td className="numeric inward">{row.inward.toLocaleString()}</td>
-                        <td className="numeric outward">{row.outward.toLocaleString()}</td>
-                        <td className="numeric closing-qty">{row.closingQty.toLocaleString()}</td>
-                        <td className="numeric closing-amt">{"\u20B9"} {row.closingAmt.toLocaleString("en-IN", { minimumFractionDigits: 0 })}</td>
+                        <td>{row.gstin || "-"}</td>
+                        <td className="numeric">{"\u20B9"} {row.sales.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                        <td className="numeric inward">{"\u20B9"} {row.purchases.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                        <td className="numeric outward">{"\u20B9"} {row.salesBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                        <td className="numeric">{"\u20B9"} {row.purchasesBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                        <td className="numeric closing-amt">{"\u20B9"} {row.netBalance.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
                       </tr>
                     ))
                   )}

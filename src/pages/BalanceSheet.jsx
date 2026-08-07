@@ -217,6 +217,8 @@ const BalanceSheet = () => {
   const [view, setView] = useState("horizontal");
   const [configOpen, setConfigOpen] = useState(false);
   const [type, setType] = useState()
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
 
   const [config, setConfig] = useState({
     showPercent: false,
@@ -320,13 +322,16 @@ const BalanceSheet = () => {
 });
 
   useEffect(() => {
-    services.getBalanceSheet({}).then(res => {
+    services.getBalanceSheet({
+      from_date: fromDate || undefined,
+      to_date: toDate || undefined,
+    }).then(res => {
       const apiData = res.data;
       if (apiData && apiData.liabilities && apiData.assets) {
         setData(apiData);
       }
     }).catch(() => {});
-  }, []);
+  }, [fromDate, toDate]);
 
   // 🔹 GENERATE ROWS (same logic as P&L)
   const generateRows = (groups) => {
@@ -419,9 +424,9 @@ const BalanceSheet = () => {
           </div>
           <div className="bs-date">
             <Calendar size={16} />
-            <input type="date" defaultValue="2024-04-01" />
+            <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
             <span>to</span>
-            <input type="date" defaultValue="2025-03-31" />
+            <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
           </div>
         </div>
 

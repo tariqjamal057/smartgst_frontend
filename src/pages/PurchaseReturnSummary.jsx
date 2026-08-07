@@ -3,6 +3,17 @@ import { useOutletContext } from "react-router-dom";
 import * as services from "../api/services";
 import "../styles/purchaseReturn.css";
 
+const today = new Date();
+const fyStartYear = today.getMonth() >= 3 ? today.getFullYear() : today.getFullYear() - 1;
+const toDateInput = (d) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
+const defaultFromDate = `${fyStartYear}-04-01`;
+const defaultToDate = toDateInput(today);
+
 export default function SalesReturnSummary() {
   const { collapsed } = useOutletContext();
 
@@ -15,8 +26,8 @@ export default function SalesReturnSummary() {
   const configRef = useRef(null);
   const [filters, setFilters] = useState({
     groupBy: "Document",
-    fromDate: "2026-04-01",
-    toDate: "2026-04-07",
+    fromDate: defaultFromDate,
+    toDate: defaultToDate,
   });
 
   // Column configuration state - Only for optional columns
@@ -184,27 +195,51 @@ export default function SalesReturnSummary() {
   const groupByHSN = (data) => {
     const hsnMap = new Map();
     
-    data.forEach(item => {
-      const hsnKey = item.hsnCode;
-      if (!hsnMap.has(hsnKey)) {
-        hsnMap.set(hsnKey, {
-          hsnCode: item.hsnCode,
-          hsnDescription: item.hsnDescription,
-          totalQuantity: 0,
-          taxableValue: 0,
-          totalGST: 0,
-          totalAmount: 0,
-          gstRate: item.gstRate,
-          documents: [],
-        });
+    data.forEach(doc => {
+      const lines = (doc.itemLines && doc.itemLines.length > 0) ? doc.itemLines : [];
+      if (lines.length === 0) {
+        const hsnKey = doc.hsnCode || "UNKNOWN";
+        if (!hsnMap.has(hsnKey)) {
+          hsnMap.set(hsnKey, {
+            hsnCode: hsnKey,
+            hsnDescription: doc.hsnDescription || "",
+            totalQuantity: 0,
+            taxableValue: 0,
+            totalGST: 0,
+            totalAmount: 0,
+            gstRate: doc.gstRate || "18%",
+            documents: [],
+          });
+        }
+        const hsnGroup = hsnMap.get(hsnKey);
+        hsnGroup.totalQuantity += doc.quantity || 0;
+        hsnGroup.taxableValue += doc.taxableValue || 0;
+        hsnGroup.totalGST += doc.totalGST || 0;
+        hsnGroup.totalAmount += doc.totalAmount || 0;
+        hsnGroup.documents.push(doc.docNo);
+        return;
       }
-      
-      const hsnGroup = hsnMap.get(hsnKey);
-      hsnGroup.totalQuantity += item.quantity || 0;
-      hsnGroup.taxableValue += item.taxableValue;
-      hsnGroup.totalGST += item.totalGST;
-      hsnGroup.totalAmount += item.totalAmount;
-      hsnGroup.documents.push(item.docNo);
+      lines.forEach(it => {
+        const hsnKey = it.hsn_code || it.hsn || "UNKNOWN";
+        if (!hsnMap.has(hsnKey)) {
+          hsnMap.set(hsnKey, {
+            hsnCode: hsnKey,
+            hsnDescription: it.hsn_description || it.hsn_desc || "",
+            totalQuantity: 0,
+            taxableValue: 0,
+            totalGST: 0,
+            totalAmount: 0,
+            gstRate: it.gst_rate ? `${it.gst_rate}%` : doc.gstRate || "18%",
+            documents: [],
+          });
+        }
+        const hsnGroup = hsnMap.get(hsnKey);
+        hsnGroup.totalQuantity += Number(it.quantity || 0);
+        hsnGroup.taxableValue += Number(it.taxable_value || 0);
+        hsnGroup.totalGST += Number(it.total_gst || 0);
+        hsnGroup.totalAmount += Number(it.amount || 0);
+        hsnGroup.documents.push(doc.docNo);
+      });
     });
     
     return Array.from(hsnMap.values());
@@ -215,10 +250,10 @@ export default function SalesReturnSummary() {
     const customerMap = new Map();
     
     data.forEach(item => {
-      const customerKey = item.customerCode;
+      const customerKey = item.customerCode || item.customerName || "Unknown";
       if (!customerMap.has(customerKey)) {
         customerMap.set(customerKey, {
-          customerCode: item.customerCode,
+          customerCode: item.customerCode || "",
           customerName: item.customerName,
           customerAddress: item.customerAddress,
           gstin: item.gstin,
@@ -332,31 +367,32 @@ export default function SalesReturnSummary() {
     setError(null);
     
     try {
-      const res = await services.getPurchaseReturns({
+      const res = await services.getPurchaseReturnSummaryRpt({
         from_date: filters.fromDate,
         to_date: filters.toDate,
       });
-      const rows = Array.isArray(res.data) ? res.data : res.data?.results ?? [];
-      const mapped = rows.map(r => ({
-        id: r.id,
-        docNo: r.voucher_no || r.doc_no || r.id,
+      const payload = res.data || {};
+      const rows = payload.returns ?? (Array.isArray(payload) ? payload : payload.results ?? []);
+      const mapped = rows.map((r, idx) => ({
+        id: r.id || idx + 1,
+        docNo: r.return_number || r.voucher_no || r.doc_no || r.id,
         docDate: r.date || r.created_at || "",
         customerName: r.party_name || r.vendor_name || r.supplier_name || "",
-        customerCode: r.party_code || r.vendor_code || "",
+        customerCode: r.customer_code || r.party_name || "",
         voucherType: "Purchase Return",
-        taxableValue: r.taxable_value ?? r.taxable ?? 0,
-        totalGST: r.total_gst ?? r.gst ?? 0,
-        totalAmount: r.total_amount ?? r.total ?? 0,
+        taxableValue: Number(r.taxable_value ?? r.taxable ?? 0),
+        totalGST: Number(r.total_gst ?? r.gst ?? 0),
+        totalAmount: Number(r.total_amount ?? r.total ?? 0),
         createdBy: r.created_by || "Admin",
         createdDate: r.created_at || r.date || "",
-        gstRate: r.gst_rate || "18%",
+        gstRate: r.gst_rate ? `${r.gst_rate}%` : "18%",
         taxes: r.taxes || "",
         tds: r.tds || "",
         gstin: r.gstin || r.party_gstin || "",
-        originalDocNo: r.original_invoice_no || "",
-        customerAddress: r.customer_address || r.billed_to?.address || "",
-        items: r.items_summary || "",
-        narration: r.narration || "",
+        originalDocNo: r.bill_number || r.original_invoice_no || "",
+        customerAddress: r.vendor_address || r.customer_address || r.billed_to?.address || "",
+        items: (r.items || []).map(it => `${it.hsn_description || it.hsn_code || "Item"} (${it.quantity || 0} units)`).join(", ") || "",
+        narration: r.reason || r.narration || "",
         typeOfSupply: r.supply_type || "Intra-State",
         fromDate: r.from_date || "",
         toDate: r.to_date || "",
@@ -364,6 +400,7 @@ export default function SalesReturnSummary() {
         hsnDescription: r.hsn_description || "",
         quantity: r.quantity ?? 0,
         unitPrice: r.unit_price ?? 0,
+        itemLines: r.items || [],
       }));
       setSalesData(mapped.length > 0 ? mapped : []);
     } catch {

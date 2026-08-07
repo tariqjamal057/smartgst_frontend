@@ -20,23 +20,34 @@ const HSNSACReport = () => {
         const res = await services.getHSNSACRpt({
           from_date: startDate,
           to_date: endDate,
-          type,
+          type: type === "all" ? "" : type,
         });
-        const rows = Array.isArray(res.data) ? res.data : res.data?.results ?? [];
-        setData(rows.map(r => ({
-          type: r.supply_type || r.type || "B2C",
-          hsn: r.hsn_code || r.hsn || "",
-          description: r.description || r.hsn_description || "",
-          unit: r.unit || "",
-          qty: r.quantity ?? r.qty ?? 0,
-          amount: r.total_amount ?? r.amount ?? 0,
-          taxable: r.taxable_value ?? r.taxable ?? 0,
-          igst: r.igst ?? 0,
-          cgst: r.cgst ?? 0,
-          sgst: r.sgst ?? 0,
-          cess: r.cess ?? 0,
-          rate: r.gst_rate || r.rate || "",
-        })));
+        const payload = res.data || {};
+        const rows = Array.isArray(payload) ? payload : payload.hsn_summary ?? payload.results ?? [];
+        setData(rows.map(r => {
+          const qty = (r.sale_quantity ?? 0) + (r.purchase_quantity ?? 0);
+          const taxable = (r.sale_taxable_value ?? 0) + (r.purchase_taxable_value ?? 0);
+          const igst = (r.sale_igst ?? 0) + (r.purchase_igst ?? 0);
+          const cgst = (r.sale_cgst ?? 0) + (r.purchase_cgst ?? 0);
+          const sgst = (r.sale_sgst ?? 0) + (r.purchase_sgst ?? 0);
+          const hasSale = (r.sale_quantity ?? 0) > 0 || (r.sale_taxable_value ?? 0) > 0;
+          const hasPurchase = (r.purchase_quantity ?? 0) > 0 || (r.purchase_taxable_value ?? 0) > 0;
+          const typeLabel = hasSale && hasPurchase ? "Both" : hasSale ? "Sale" : hasPurchase ? "Purchase" : "B2C";
+          return {
+            type: typeLabel,
+            hsn: r.hsn_code || r.hsn || "",
+            description: r.description || r.item_name || r.hsn_description || "",
+            unit: r.unit || "",
+            qty,
+            amount: taxable + igst + cgst + sgst,
+            taxable,
+            igst,
+            cgst,
+            sgst,
+            cess: r.cess ?? 0,
+            rate: r.gst_rate || r.rate || "",
+          };
+        }));
       } catch {
         setData([]);
       } finally {
@@ -80,12 +91,9 @@ const HSNSACReport = () => {
           <div className="hsn-field">
             <label>Type</label>
             <select value={type} onChange={(e) => setType(e.target.value)}>
-              <option value="all">All (Default)</option>
-              <option value="b2b_hsn">B2B HSN</option>
-              <option value="b2c_hsn">B2C HSN</option>
-              <option value="b2b_sac">B2B SAC</option>
-              <option value="b2c_sac">B2C SAC</option>
-              <option value="by_book">By Book HSN/SAC</option>
+              <option value="all">All (Sales & Purchases)</option>
+              <option value="sale">Sales Only</option>
+              <option value="purchase">Purchases Only</option>
             </select>
           </div>
         </div>

@@ -48,20 +48,22 @@ export default function SalesOrderSummary() {
     (async () => {
       setLoading(true);
       try {
-        const res = await services.getSaleOrders({
+        const res = await services.getSaleOrderSummaryRpt({
           from_date: filters.fromDate,
           to_date: filters.toDate,
         });
-        const rows = Array.isArray(res.data) ? res.data : res.data?.results ?? [];
-        setData(rows.map(r => ({
-          refNo: r.voucher_no || r.order_no || r.doc_no || "",
+        const payload = res.data || {};
+        const rows = payload.orders ?? (Array.isArray(payload) ? payload : payload.results ?? []);
+        setData(rows.map((r, idx) => ({
+          id: r.id || idx + 1,
+          refNo: r.order_number || r.voucher_no || r.order_no || r.doc_no || "",
           date: r.date || r.order_date || "",
           displayDate: r.date || r.order_date || "",
           customer: r.party_name || r.customer_name || r.billed_to?.name || "",
-          customerGSTIN: r.gstin || r.party_gstin || "",
-          taxable: r.taxable_value ?? r.taxable ?? 0,
-          gst: r.total_gst ?? r.gst ?? 0,
-          total: r.total_amount ?? r.total ?? 0,
+          customerGSTIN: r.customer_gstin || r.gstin || r.party_gstin || "",
+          taxable: Number(r.taxable_value ?? r.taxable ?? 0),
+          gst: Number(r.total_gst ?? r.gst ?? 0),
+          total: Number(r.total_amount ?? r.total ?? 0),
           status: r.status || "Pending",
           type: r.supply_type || r.voucher_type || "Regular",
           items: r.item_count ?? 0,
@@ -70,11 +72,11 @@ export default function SalesOrderSummary() {
           billingAddress: r.billing_address || r.billed_to?.address || "",
           shippingAddress: r.shipping_address || "",
           narration: r.narration || "",
-          gstRate: r.gst_rate || "18%",
-          cgst: r.cgst ?? 0,
-          sgst: r.sgst ?? 0,
-          igst: r.igst ?? 0,
-          customerDetails: `${r.party_name || r.customer_name || ""} | GST: ${r.gstin || r.party_gstin || ""}`,
+          gstRate: r.gst_rate ? `${r.gst_rate}%` : "18%",
+          cgst: Number(r.total_cgst ?? 0),
+          sgst: Number(r.total_sgst ?? 0),
+          igst: Number(r.total_igst ?? 0),
+          customerDetails: `${r.party_name || r.customer_name || ""} | GST: ${r.customer_gstin || r.gstin || ""}`,
         })));
       } catch {
         setData([]);
@@ -253,8 +255,7 @@ export default function SalesOrderSummary() {
               <select value={filters.supplyType} onChange={(e) => setFilters(prev => ({ ...prev, supplyType: e.target.value }))}>
                 <option value="all">All Types</option>
                 <option value="Regular">Regular</option>
-                <option value="Export with Payment">Export with Payment</option>
-                <option value="Export without Payment">Export without Payment</option>
+                <option value="Export">Export</option>
                 <option value="SEZ Supply">SEZ Supply</option>
               </select>
             </div>

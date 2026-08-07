@@ -3,14 +3,25 @@ import { useOutletContext } from "react-router-dom";
 import * as services from "../api/services";
 import "../styles/salesummary.css";
 
+const today = new Date();
+const fyStartYear = today.getMonth() >= 3 ? today.getFullYear() : today.getFullYear() - 1;
+const toDateInput = (d) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
+const defaultFromDate = `${fyStartYear}-04-01`;
+const defaultToDate = toDateInput(today);
+
 export default function GeneralReports() {
   const { collapsed } = useOutletContext();
   const [showConfig, setShowConfig] = useState(false);
   const configRef = useRef(null);
 
   const [filters, setFilters] = useState({
-    fromDate: "2026-04-01",
-    toDate: "2026-04-07",
+    fromDate: defaultFromDate,
+    toDate: defaultToDate,
     by: "Invoice"
   });
 
@@ -44,32 +55,36 @@ export default function GeneralReports() {
         from_date: filters.fromDate,
         to_date: filters.toDate,
       });
-      const rows = Array.isArray(res.data) ? res.data : res.data?.results ?? [];
+      const payload = res.data || {};
+      const rows = payload.sales ?? (Array.isArray(payload) ? payload : payload.results ?? []);
       const mapped = rows.map((r, idx) => ({
         id: r.id || idx + 1,
-        invNo: r.voucher_no || r.invoice_no || r.doc_no || "",
+        invNo: r.voucher_number || r.invoice_no || r.bill_id || r.doc_no || "",
         invDate: r.date || r.invoice_date || "",
         displayDate: r.date || r.invoice_date || "",
         customerName: r.party_name || r.customer_name || r.billed_to?.name || "",
         voucherType: r.voucher_type || "Sales",
-        taxableValue: r.taxable_value ?? r.taxable ?? 0,
-        totalGST: r.total_gst ?? r.gst ?? 0,
-        invValue: r.total_amount ?? r.total ?? 0,
-        gstRate: r.gst_rate || "18%",
+        taxableValue: Number(r.total_taxable_amount ?? r.taxable_value ?? r.taxable ?? 0),
+        totalGST: Number(r.total_gst ?? ((Number(r.total_cgst) || 0) + (Number(r.total_sgst) || 0) + (Number(r.total_igst) || 0))),
+        invValue: Number(r.total_amount ?? r.total ?? 0),
+        gstRate: r.gst_rate ? `${r.gst_rate}%` : "18%",
         gstin: r.gstin || r.party_gstin || "",
-        address: r.customer_address || r.billed_to?.address || "",
-        hsnCode: r.hsn_code || "",
-        description: r.hsn_description || r.item_description || "",
+        address: r.address || r.customer_address || r.billed_to?.address || "",
+        narration: r.narration || "",
+        supplyType: r.supply_type || "Intra-State",
+        hsnCode: "",
+        description: "",
       }));
       setInvoiceData(mapped);
-      setHsnData(mapped.filter(r => r.hsnCode).map((r, idx) => ({
+      const hsnRows = payload.hsn ?? [];
+      setHsnData(hsnRows.map((h, idx) => ({
         id: idx + 1,
-        hsnCode: r.hsnCode,
-        taxableValue: r.taxableValue,
-        totalGST: r.totalGST,
-        description: r.description,
-        gstRate: r.gstRate,
-        invDate: r.invDate,
+        hsnCode: h.hsn_code || "",
+        taxableValue: Number(h.taxable_value || 0),
+        totalGST: Number(h.total_gst || 0),
+        description: h.description || "",
+        gstRate: h.gst_rate ? `${h.gst_rate}%` : "18%",
+        invDate: "",
       })));
       setCustomerData(mapped.map((r, idx) => ({
         id: idx + 1,
@@ -116,7 +131,7 @@ export default function GeneralReports() {
     let data;
     switch(filters.by) {
       case "Invoice": data = [...invoiceData]; break;
-      case "HSN": data = [...hsnData]; break;
+      case "HSN": return [...hsnData];
       case "Customer": data = [...customerData]; break;
       default: data = [...invoiceData];
     }
@@ -201,8 +216,8 @@ export default function GeneralReports() {
                 <td>{"\u20B9"}{row.invValue.toLocaleString()}</td>
                 {config.showTDS && <td>-</td>}
                 {config.showItems && <td>-</td>}
-                {config.showNarration && <td>-</td>}
-                {config.typeOfSupply && <td>Intra-State</td>}
+                {config.showNarration && <td>{row.narration || "-"}</td>}
+                {config.typeOfSupply && <td>{row.supplyType}</td>}
               </tr>
             ))}
           </tbody>

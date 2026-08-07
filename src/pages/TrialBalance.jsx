@@ -13,6 +13,7 @@ const TrialBalance = () => {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [data, setData] = useState([]);
+  const [totals, setTotals] = useState({ debit: 0, credit: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -21,7 +22,12 @@ const TrialBalance = () => {
       setLoading(true);
       setError(null);
       const res = await services.getTrialBalance(params);
-      setData(res.data.results || res.data || []);
+      const payload = res.data || {};
+      setData(payload.groups || payload.results || (Array.isArray(payload) ? payload : []));
+      setTotals({
+        debit: payload.total_debit ?? payload.totalDr ?? 0,
+        credit: payload.total_credit ?? payload.totalCr ?? 0,
+      });
     } catch (err) {
       console.error("Failed to fetch trial balance:", err);
       setError("Failed to load trial balance data");
@@ -49,24 +55,24 @@ const TrialBalance = () => {
       const children = group.children || group.ledgers || [];
       const groupDr = children.reduce((a, b) => a + (b.dr || b.debit || 0), 0);
       const groupCr = children.reduce((a, b) => a + (b.cr || b.credit || 0), 0);
+      const groupODr = children.reduce((a, b) => a + (b.opening_debit || 0), 0);
+      const groupOCr = children.reduce((a, b) => a + (b.opening_credit || 0), 0);
+      const toRow = (l) => ({
+        name: l.name,
+        dr: l.dr || l.debit || 0,
+        cr: l.cr || l.credit || 0,
+        openingDr: l.opening_debit || 0,
+        openingCr: l.opening_credit || 0,
+        isGroup: false,
+      });
 
       if (viewType === "group") {
-        result.push({ name: group.group || group.name, dr: groupDr, cr: groupCr, isGroup: true });
+        result.push({ name: group.group || group.name, dr: groupDr, cr: groupCr, openingDr: groupODr, openingCr: groupOCr, isGroup: true });
       } else if (viewType === "ledger") {
-        children.forEach((l) => result.push({
-          name: l.name,
-          dr: l.dr || l.debit || 0,
-          cr: l.cr || l.credit || 0,
-          isGroup: false,
-        }));
+        children.forEach((l) => result.push(toRow(l)));
       } else {
-        result.push({ name: group.group || group.name, dr: groupDr, cr: groupCr, isGroup: true });
-        children.forEach((l) => result.push({
-          name: l.name,
-          dr: l.dr || l.debit || 0,
-          cr: l.cr || l.credit || 0,
-          isGroup: false,
-        }));
+        result.push({ name: group.group || group.name, dr: groupDr, cr: groupCr, openingDr: groupODr, openingCr: groupOCr, isGroup: true });
+        children.forEach((l) => result.push(toRow(l)));
       }
     });
 
@@ -74,8 +80,10 @@ const TrialBalance = () => {
   }, [data, viewType]);
 
   // TOTALS
-  const totalDr = rows.reduce((s, r) => s + (r.dr || 0), 0);
-  const totalCr = rows.reduce((s, r) => s + (r.cr || 0), 0);
+  const totalDr = totals.debit || rows.reduce((s, r) => s + (r.dr || 0), 0);
+  const totalCr = totals.credit || rows.reduce((s, r) => s + (r.cr || 0), 0);
+  const totalODr = rows.reduce((s, r) => s + (r.openingDr || 0), 0);
+  const totalOCr = rows.reduce((s, r) => s + (r.openingCr || 0), 0);
   const isMatched = totalDr === totalCr;
 
   return (
@@ -215,8 +223,8 @@ const TrialBalance = () => {
 
                   {showOpening && (
                     <>
-                      <td>0</td>
-                      <td>0</td>
+                      <td>{r.openingDr ? r.openingDr.toLocaleString() : ""}</td>
+                      <td>{r.openingCr ? r.openingCr.toLocaleString() : ""}</td>
                     </>
                   )}
 
@@ -232,8 +240,8 @@ const TrialBalance = () => {
 
                 {showOpening && (
                   <>
-                    <td></td>
-                    <td></td>
+                    <td><b>{totalODr.toLocaleString()}</b></td>
+                    <td><b>{totalOCr.toLocaleString()}</b></td>
                   </>
                 )}
 

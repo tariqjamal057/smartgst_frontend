@@ -46,134 +46,48 @@ export default function DeliveryChallanSummary() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const fallbackData = [
-    {
-      docNo: "DC-001",
-      docDate: "2026-04-01",
-      displayDate: "01-04-2026",
-      customer: "ABC Traders",
-      customerGSTIN: "27AAACA1234A1Z",
-      billingAddress: "Mumbai, Maharashtra - 400001",
-      shippingAddress: "Thane, Maharashtra - 400601",
-      voucherType: "Delivery Challan",
-      voucherNo: "V001",
-      taxable: 15000,
-      gst: 2700,
-      total: 17700,
-      status: "Pending",
-      items: 4,
-      itemsList: "Product A (2 units), Product B (2 units)",
-      transportDetails: "Transport: Roadways Transport, Vehicle No: MH-12-AB-5678, Driver: Suresh",
-      gstRate: "18%",
-      cgst: 1350,
-      sgst: 1350,
-      igst: 0,
-      transportMode: "Road",
-      transporter: "Roadways Transport",
-      vehicleNo: "MH-12-AB-5678",
-      lrNo: "LR123456",
-    },
-    {
-      docNo: "DC-002",
-      docDate: "2026-04-02",
-      displayDate: "02-04-2026",
-      customer: "XYZ Pvt Ltd",
-      customerGSTIN: "29BBBBC5678B2Z",
-      billingAddress: "Pune, Maharashtra - 411001",
-      shippingAddress: "Mumbai Port, Maharashtra - 400001",
-      voucherType: "Delivery Challan",
-      voucherNo: "V002",
-      taxable: 20000,
-      gst: 3600,
-      total: 23600,
-      status: "Complete",
-      items: 6,
-      itemsList: "Product C (3 units), Product D (3 units)",
-      transportDetails: "Transport: Express Logistics, Vehicle No: MH-14-CD-9012, LR No: LR789012",
-      gstRate: "18%",
-      cgst: 0,
-      sgst: 0,
-      igst: 3600,
-      transportMode: "Road",
-      transporter: "Express Logistics",
-      vehicleNo: "MH-14-CD-9012",
-      lrNo: "LR789012",
-    },
-    {
-      docNo: "DC-003",
-      docDate: "2026-04-03",
-      displayDate: "03-04-2026",
-      customer: "MNO Industries",
-      customerGSTIN: "33CCCDE7890C3X",
-      billingAddress: "Bangalore, Karnataka - 560001",
-      shippingAddress: "SEZ Unit, Bangalore - 560099",
-      voucherType: "Stock Transfer",
-      voucherNo: "V003",
-      taxable: 12000,
-      gst: 2160,
-      total: 14160,
-      status: "Processing",
-      items: 3,
-      itemsList: "Product E (3 units)",
-      transportDetails: "Transport: Railways, Wagon No: WGN-12345, Rake No: RK67890",
-      gstRate: "18%",
-      cgst: 1080,
-      sgst: 1080,
-      igst: 0,
-      transportMode: "Rail",
-      transporter: "Indian Railways",
-      vehicleNo: "WGN-12345",
-      lrNo: "RR456789",
-    },
-    {
-      docNo: "DC-004",
-      docDate: "2026-04-04",
-      displayDate: "04-04-2026",
-      customer: "PQR Enterprises",
-      customerGSTIN: "44DDDEF9012D4Y",
-      billingAddress: "Delhi, Delhi - 110001",
-      shippingAddress: "Noida, UP - 201301",
-      voucherType: "Job Work",
-      voucherNo: "V004",
-      taxable: 18000,
-      gst: 3240,
-      total: 21240,
-      status: "Pending",
-      items: 5,
-      itemsList: "Product F (3 units), Product G (2 units)",
-      transportDetails: "Transport: Air Cargo, Flight No: AI-202, AWB No: AWB123456",
-      gstRate: "18%",
-      cgst: 1620,
-      sgst: 1620,
-      igst: 0,
-      transportMode: "Air",
-      transporter: "Air Cargo",
-      vehicleNo: "AI-202",
-      lrNo: "AWB123456",
-    }
-  ];
+  const formatDate = (d) => {
+    if (!d) return "-";
+    const parts = String(d).split("T")[0].split("-");
+    if (parts.length !== 3) return d;
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  };
 
   useEffect(() => {
     (async () => {
       setLoading(true);
       try {
-        const res = await services.getDeliveryChallans({});
-        const rows = Array.isArray(res.data) ? res.data : res.data?.results ?? [];
-        if (rows.length > 0) {
-          setData(rows.map(r => ({
-            ...r,
-            displayDate: r.docDate || r.date || r.created_at || "-",
-            customer: r.customer || r.party_name || r.billed_to?.name || "-",
-            total: r.total ?? r.total_amount ?? 0,
-            taxable: r.taxable ?? r.taxable_value ?? 0,
-            gst: r.gst ?? r.total_gst ?? 0,
-            status: r.status || "Pending",
-          })));
-        } else {
-          setData(fallbackData);
-        }
+        const res = await services.getDeliveryChallanSummaryRpt({});
+        const payload = res.data || {};
+        const rows = Array.isArray(payload) ? payload : payload.challans ?? payload.results ?? [];
+        setData(rows.map(r => ({
+          ...r,
+          docNo: r.challan_number || r.docNo || "",
+          docDate: r.date || r.docDate || "",
+          displayDate: r.date ? formatDate(r.date) : "-",
+          customer: r.party_name || r.customer || "-",
+          customerGSTIN: r.customer_gstin || "",
+          billingAddress: r.billing_address || "",
+          shippingAddress: r.shipping_address || "",
+          voucherType: r.challan_type || "Sales",
+          voucherNo: r.challan_number || "",
+          taxable: r.taxable_value ?? 0,
+          gst: r.total_gst ?? 0,
+          total: r.total_amount ?? r.total ?? 0,
+          status: r.status || "Pending",
+          items: r.item_count ?? 0,
+          itemsList: r.itemsList || "",
+          transportDetails: r.transport_details || "",
+          gstRate: r.gst_rate != null ? `${r.gst_rate}%` : "0%",
+          cgst: r.total_cgst ?? 0,
+          sgst: r.total_sgst ?? 0,
+          igst: r.total_igst ?? 0,
+          transporter: r.transporter_name || "",
+          vehicleNo: r.vehicle_no || "",
+          lrNo: r.lr_rr_no || "",
+        })));
       } catch {
-        setData(fallbackData);
+        setData([]);
       } finally {
         setLoading(false);
       }
@@ -328,9 +242,9 @@ export default function DeliveryChallanSummary() {
     let aValue = a[sortConfig.key];
     let bValue = b[sortConfig.key];
     
-    if (sortConfig.key === "docDate") {
-      aValue = new Date(aValue);
-      bValue = new Date(bValue);
+    if (sortConfig.key === "displayDate" || sortConfig.key === "docDate") {
+      aValue = new Date(a.docDate || a[sortConfig.key]);
+      bValue = new Date(b.docDate || b[sortConfig.key]);
     }
     
     if (sortConfig.direction === "asc") {
@@ -343,8 +257,9 @@ export default function DeliveryChallanSummary() {
   const getChallanTypeIcon = (type) => {
     switch(type) {
       case "Job Work": return "🔧";
-      case "Stock Transfer": return "📦";
-      case "Exhibition": return "🎪";
+      case "Purchase Return": return "↩️";
+      case "Free": return "🎁";
+      case "Sales": return "📄";
       default: return "📄";
     }
   };
@@ -383,7 +298,7 @@ export default function DeliveryChallanSummary() {
       sortable: false,
       render: (row) => (
         <div>
-          <strong>Items:</strong> {row.itemsList}
+          {row.itemsList ? <><strong>Items:</strong> {row.itemsList}</> : <><strong>Items:</strong> {row.items} units</>}
           <div><strong>Quantity:</strong> {row.items} units</div>
         </div>
       )
@@ -409,10 +324,10 @@ export default function DeliveryChallanSummary() {
       sortable: false,
       render: (row) => (
         <div>
-          <div><strong>Mode:</strong> {row.transportMode}</div>
-          <div><strong>Transporter:</strong> {row.transporter}</div>
-          <div><strong>Vehicle No:</strong> {row.vehicleNo}</div>
-          <div><strong>LR/Ref No:</strong> {row.lrNo}</div>
+          {row.transporter && <div><strong>Transporter:</strong> {row.transporter}</div>}
+          {row.vehicleNo && <div><strong>Vehicle No:</strong> {row.vehicleNo}</div>}
+          {row.lrNo && <div><strong>LR/Ref No:</strong> {row.lrNo}</div>}
+          {!row.transporter && !row.vehicleNo && !row.lrNo && <div>No transport details</div>}
         </div>
       )
     },
@@ -497,11 +412,10 @@ export default function DeliveryChallanSummary() {
                 onChange={(e) => setFilters(prev => ({ ...prev, challanType: e.target.value }))}
               >
                 <option value="all">All Types</option>
+                <option value="Sales">Sales</option>
                 <option value="Job Work">Job Work</option>
-                <option value="Approval Basis">Approval Basis</option>
-                <option value="Stock Transfer">Stock Transfer</option>
-                <option value="Exhibition">Exhibition</option>
-                <option value="From Exhibition">From Exhibition</option>
+                <option value="Purchase Return">Purchase Return</option>
+                <option value="Free">Free</option>
               </select>
             </div>
 

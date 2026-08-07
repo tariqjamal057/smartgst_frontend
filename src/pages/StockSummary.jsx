@@ -22,14 +22,15 @@ const StockSummary = () => {
           from_date: fromDate,
           to_date: toDate,
         });
-        const rows = Array.isArray(res.data) ? res.data : res.data?.results ?? [];
+        const payload = res.data || {};
+        const rows = Array.isArray(payload) ? payload : payload.items ?? payload.results ?? [];
         setRawData(rows.map(r => ({
           item: r.item_name || r.item || r.name || "",
-          group: r.group_name || r.godown || r.group || "",
+          group: r.group_name || r.godown || r.group || r.category || "",
           unit: r.unit || "",
-          opening: r.opening_qty ?? r.opening ?? 0,
-          inward: r.inward_qty ?? r.inward ?? 0,
-          outward: r.outward_qty ?? r.outward ?? 0,
+          opening: r.opening_qty ?? r.opening ?? r.opening_quantity ?? 0,
+          inward: r.inward_qty ?? r.inward ?? r.purchase_quantity ?? 0,
+          outward: r.outward_qty ?? r.outward ?? r.sale_quantity ?? 0,
           rate: r.avg_rate ?? r.rate ?? 0,
         })));
       } catch {
