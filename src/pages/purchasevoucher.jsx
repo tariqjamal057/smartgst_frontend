@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useOutletContext, useNavigate } from "react-router-dom";
 import { FaTrash ,FaSearch,FaUniversity,FaTruck,FaPen,FaSave,
   FaPaperPlane,
@@ -7,13 +7,13 @@ import { FaTrash ,FaSearch,FaUniversity,FaTruck,FaPen,FaSave,
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import "../styles/Purchase.css";
-import api from "../api/axios";
+import * as services from "../api/services";
 
 export default function Purchase() {
   const { collapsed } = useOutletContext();
   const navigate = useNavigate();
   const [purdisDate, setPurdisDate] = useState(new Date());
-  const [mode, setMode] = useState("item");
+  const [voucherMode, setVoucherMode] = useState("item");
   const [purchaseType, setPurchaseType] = useState("Goods");
 const [invoiceRef, setInvoiceRef] = useState("");
 const [invoiceRefDate, setInvoiceRefDate] = useState(new Date());
@@ -26,25 +26,46 @@ const [gstError, setGstError] = useState("");
 const [editBilled, setEditBilled] = useState(false);
 const [editShipped, setEditShipped] = useState(false);
 const [shippedTo, setShippedTo] = useState({
-    name: "SALVIA GRAFICS PVT LTD",
-    address: "2652/F Kuti Choraha, Near PVS Mall, Garh Road",
-    city: "Meerut-250002",
-    contact: "Vikram Singh",
-    mobile: "9897012345",
-    pan: "ABMCS5888A",
-    gstin: "09ABMCS5888A12U",
-    pos: "09-Uttar Pradesh"
+    name: "",
+    address: "",
+    city: "",
+    contact: "",
+    mobile: "",
+    pan: "",
+    gstin: "",
+    pos: ""
   });
 const [billedTo, setBilledTo] = useState({
-    name: "SALVIA GRAFICS PVT LTD",
-    address: "2652/F Kuti Choraha, Near PVS Mall, Garh Road",
-    city: "Meerut-250002",
-    contact: "Vikram Singh",
-    mobile: "9897012345",
-    pan: "ABMCS5888A",
-    gstin: "09ABMCS5888A12U",
-    pos: "09-Uttar Pradesh"
+    name: "",
+    address: "",
+    city: "",
+    contact: "",
+    mobile: "",
+    pan: "",
+    gstin: "",
+    pos: ""
   });
+const [suppliers, setSuppliers] = useState([]);
+const [customerSearch, setCustomerSearch] = useState("");
+const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+const [selectedParty, setSelectedParty] = useState(null);
+const [itemsList, setItemsList] = useState([]);
+const [transporters, setTransporters] = useState([]);
+const [transporter, setTransporter] = useState("");
+const [dispatchDocNo, setDispatchDocNo] = useState("");
+const [vehicleNo, setVehicleNo] = useState("");
+const [lrRrNo, setLrRrNo] = useState("");
+const [portOfExport, setPortOfExport] = useState("");
+const [saving, setSaving] = useState(false);
+
+/* ================= VOUCHER NUMBER ================= */
+const VOUCHER_PREFIX = "PUR/2025-26";
+const [currentCount, setCurrentCount] = useState(1);
+const [voucherNo, setVoucherNo] = useState(`${VOUCHER_PREFIX}/0001`);
+useEffect(() => {
+  setVoucherNo(`${VOUCHER_PREFIX}/${String(currentCount).padStart(4, "0")}`);
+}, [currentCount]);
+
 const validateGST = async (value) => {
   if (value.length !== 15) return;
 
@@ -53,7 +74,7 @@ const validateGST = async (value) => {
     setGstError("");
     setGstData(null);
 
-    const res = await api.get(`/gst/${value}/`);
+    const res = await services.lookupGst(value);
     setGstData(res.data);
   } catch (err) {
     setGstError("Error validating GSTIN");
@@ -77,17 +98,33 @@ const handleGSTChange = (e) => {
   const [items, setItems] = useState([
   {
     id: Date.now(),
+    itemId: null,
     desc: "",
     qty: "",
     rate: "",
     tax: "0"
   }
 ]);
-  const [voucherCount, setVoucherCount] = useState(1);
-  const generateVoucher = () => {
-    const number = String(voucherCount).padStart(2, "0");
-    return `PUR-${number}`;
+  const addRow = () => {
+    setItems([
+      ...items,
+      {
+        id: Date.now() + Math.random(),
+        itemId: null,
+        desc: "",
+        qty: "",
+        rate: "",
+        tax: "0"
+      }
+    ]);
   };
+
+  const handleChange = (index, field, value) => {
+    const updated = [...items];
+    updated[index][field] = value;
+    setItems(updated);
+  };
+
  const [ledgers, setLedgers] = useState([
   {
     id: 1,
@@ -96,6 +133,12 @@ const handleGSTChange = (e) => {
     amount: ""
   }
 ]);
+
+  const handleLedgerChange = (index, field, value) => {
+    const updated = [...ledgers];
+    updated[index][field] = value;
+    setLedgers(updated);
+  };
 
   const [narration, setNarration] = useState("");
 
@@ -109,10 +152,202 @@ const handleGSTChange = (e) => {
     return base + (base * tax) / 100;
   };
 
+  const subtotal = items.reduce((sum, i) => {
+    const qty = Number(i.qty) || 0;
+    const rate = Number(i.rate) || 0;
+    return sum + qty * rate;
+  }, 0);
+
+  const totalGST = items.reduce((sum, i) => {
+    const qty = Number(i.qty) || 0;
+    const rate = Number(i.rate) || 0;
+    const tax = Number(i.tax) || 0;
+    return sum + ((qty * rate) * tax) / 100;
+  }, 0);
+
+  const cgst = totalGST / 2;
+  const sgst = totalGST / 2;
+
   const total =
-    mode === "item"
-      ? items.reduce((sum, i) => sum + calculateAmount(i), 0)
+    voucherMode === "item"
+      ? subtotal + totalGST
       : ledgers.reduce((sum, l) => sum + (Number(l.amount) || 0), 0);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [suppRes, itemRes, vendRes, billRes] = await Promise.all([
+          services.getParties({ type: "vendor" }),
+          services.getItems({}),
+          services.getParties({ type: "vendor" }),
+          services.getPurchaseBills({})
+        ]);
+        const supp = Array.isArray(suppRes.data) ? suppRes.data : suppRes.data?.results ?? [];
+        const itm = Array.isArray(itemRes.data) ? itemRes.data : itemRes.data?.results ?? [];
+        const vend = Array.isArray(vendRes.data) ? vendRes.data : vendRes.data?.results ?? [];
+        setSuppliers(supp);
+        setItemsList(itm);
+        setTransporters(vend);
+        const bills = Array.isArray(billRes.data) ? billRes.data : billRes.data?.results ?? [];
+        const pfx = VOUCHER_PREFIX + "/";
+        const max = bills.reduce((m, b) => {
+          const n = Number(String(b.voucher_number || "").replace(pfx, "").replace(/\D/g, ""));
+          return n > m ? n : m;
+        }, 0);
+        if (max > 0) setCurrentCount(max + 1);
+      } catch (e) {
+        console.error("Failed to load data:", e);
+      }
+    })();
+  }, []);
+
+  const filteredSuppliers = useMemo(() => {
+    const q = customerSearch.trim().toLowerCase();
+    if (!q) return suppliers;
+    return suppliers.filter((c) =>
+      (c.name || "").toLowerCase().includes(q) ||
+      (c.gstin || "").toLowerCase().includes(q)
+    );
+  }, [suppliers, customerSearch]);
+
+  const selectSupplier = (cust) => {
+    setSelectedParty(cust);
+    setCustomerSearch(cust.name);
+    setShowCustomerDropdown(false);
+    const billed = {
+      name: cust.name || "",
+      address: cust.billing_address || "",
+      city: "",
+      contact: cust.contact || "",
+      mobile: cust.phone || "",
+      pan: cust.pan || "",
+      gstin: cust.gstin || "",
+      pos: cust.state || ""
+    };
+    setBilledTo(billed);
+    setShippedTo(billed);
+  };
+
+  const resetForm = () => {
+    setItems([{ id: Date.now(), itemId: null, desc: "", qty: "", rate: "", tax: "0" }]);
+    setLedgers([{ id: Date.now(), ledger: "", tax: "", amount: "" }]);
+    setSelectedParty(null);
+    setCustomerSearch("");
+    setShowCustomerDropdown(false);
+    setBilledTo({ name: "", address: "", city: "", contact: "", mobile: "", pan: "", gstin: "", pos: "" });
+    setShippedTo({ name: "", address: "", city: "", contact: "", mobile: "", pan: "", gstin: "", pos: "" });
+    setInvoiceRef("");
+    setTransporter("");
+    setDispatchDocNo("");
+    setVehicleNo("");
+    setLrRrNo("");
+    setPortOfExport("");
+    setNarration("");
+  };
+
+  const handleSave = async (action = "save") => {
+    const r2 = (n) => Math.round(n * 100) / 100;
+    let lines;
+    if (voucherMode === "accounting") {
+      lines = ledgers.map((l) => {
+        const amt = Number(l.amount) || 0;
+        const tax = Number(l.tax) || 0;
+        const gstAmt = (amt * tax) / 100;
+        return {
+          item: null,
+          quantity: 1,
+          unit: "NONE",
+          price: r2(amt),
+          discount_percentage: 0,
+          discount_amount: 0,
+          taxable_value: r2(amt),
+          gst_rate: tax,
+          cgst: r2(gstAmt / 2),
+          sgst: r2(gstAmt / 2),
+          igst: 0,
+          cess: 0,
+          amount: r2(amt + gstAmt)
+        };
+      });
+    } else {
+      lines = items.map((i) => {
+        const qty = Number(i.qty) || 0;
+        const rate = Number(i.rate) || 0;
+        const tax = Number(i.tax) || 0;
+        const taxable = qty * rate;
+        const gstAmt = (taxable * tax) / 100;
+        return {
+          item: i.itemId || null,
+          quantity: qty,
+          unit: "NONE",
+          price: r2(rate),
+          discount_percentage: 0,
+          discount_amount: 0,
+          taxable_value: r2(taxable),
+          gst_rate: tax,
+          cgst: r2(gstAmt / 2),
+          sgst: r2(gstAmt / 2),
+          igst: 0,
+          cess: 0,
+          amount: r2(taxable + gstAmt)
+        };
+      });
+    }
+    const sub = lines.reduce((s, l) => s + l.taxable_value, 0);
+    const totalGst = lines.reduce((s, l) => s + l.cgst + l.sgst, 0);
+    const grandTotal = r2(sub + totalGst);
+    const payload = {
+      voucher_number: voucherNo,
+      date: purchaseDate.toISOString().split("T")[0],
+      party: selectedParty?.id || null,
+      bill_id: invoiceRef,
+      bill_date: invoiceRefDate.toISOString().split("T")[0],
+      state_of_supply: billedTo.pos || selectedParty?.state || "",
+      supply_type: "REGULAR",
+      billing_address: [billedTo.name, billedTo.address, billedTo.city].filter(Boolean).join(", "),
+      shipping_address: [shippedTo.name, shippedTo.address, shippedTo.city].filter(Boolean).join(", "),
+      round_off_amount: 0,
+      total_amount: grandTotal,
+      total_taxable_amount: r2(sub),
+      total_cgst: r2(totalGst / 2),
+      total_sgst: r2(totalGst / 2),
+      total_igst: 0,
+      total_cess: 0,
+      paid: 0,
+      balance: grandTotal,
+      description: narration,
+      eway_bill_no: dispatchDocNo,
+      transporter_name: transporter,
+      vehicle_no: vehicleNo,
+      lr_rr_no: lrRrNo,
+      port_of_export: portOfExport,
+      items: lines
+    };
+    try {
+      setSaving(true);
+      const res = await services.createPurchaseBill(payload);
+      setCurrentCount((prev) => prev + 1);
+      if (action === "send") {
+        await services.postPurchaseBill(res.data.id);
+      }
+      alert(action === "send" ? "Purchase Bill saved and posted successfully!" : "Purchase Bill saved successfully!");
+      if (action === "print") window.print();
+      resetForm();
+    } catch (err) {
+      const data = err.response?.data;
+      const detail =
+        (typeof data === "string" && data) ||
+        (Array.isArray(data) && data[0]) ||
+        data?.detail ||
+        data?.voucher_number?.[0] ||
+        data?.financial_year?.[0] ||
+        JSON.stringify(data) ||
+        err.message;
+      alert("Error saving Purchase Bill: " + detail);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="purchase-app">
@@ -135,7 +370,7 @@ const handleGSTChange = (e) => {
                       <label>Voucher No:</label>
 
                       <span className="purchase-voucher-value">
-                        {generateVoucher()}
+                        {voucherNo}
                       </span>
                     </div>
                   </div>
@@ -210,7 +445,7 @@ const handleGSTChange = (e) => {
 
                   <div className="pur-form-group">
                     <label>Voucher Mode</label>
-                    <select value={mode} onChange={(e) => setMode(e.target.value)}>
+                    <select value={voucherMode} onChange={(e) => setVoucherMode(e.target.value)}>
                       <option value="item">Item Invoice</option>
                       <option value="accounting">Accounting Invoice</option>
                     </select>
@@ -231,12 +466,15 @@ const handleGSTChange = (e) => {
               <div className="transporter-box">
                 <label>Transporter Name</label>
                 <div className="transporter-row"> 
-                  <select>
-                    <option>Select</option>
+                  <select value={transporter} onChange={(e) => setTransporter(e.target.value)}>
+                    <option value="">Select</option>
+                    {transporters.map((t) => (
+                      <option key={t.id} value={t.name}>{t.name}</option>
+                    ))}
                   </select>
                   <button
                     className="pur-transporter-create-btn"
-                    onClick={() => navigate("/Ledger")}
+                    onClick={() => navigate("/Ledger", { state: { defaultGroup: "Sundry Creditors" } })}
                   >
                     Create
                   </button>
@@ -259,7 +497,7 @@ const handleGSTChange = (e) => {
                 {/* SUCCESS */}
                 {gstData && (
                   <div className="gst-result-box">
-                    <p><strong>{gstData.name}</strong></p>
+                    <p><strong>{gstData.company_name || gstData.name}</strong></p>
                     <p>{gstData.state}</p>
                     <p>Status: {gstData.status}</p>
                   </div>
@@ -269,17 +507,17 @@ const handleGSTChange = (e) => {
             <div className="dispatch-grid">
               <div className="dis-container">
                 <label>Dispatch Doc No</label>
-                <input placeholder="Dispatch Doc No" />
+                <input placeholder="Dispatch Doc No" value={dispatchDocNo} onChange={(e) => setDispatchDocNo(e.target.value)} />
               </div>
               <div className="veh-container">
                 <label>Vehical No</label>
-                <input placeholder="Vehicle No" />
+                <input placeholder="Vehicle No" value={vehicleNo} onChange={(e) => setVehicleNo(e.target.value)} />
               </div>
               {/* <input placeholder="Transport GSTIN" /> */}
               {/* <input placeholder="Agent Name" /> */}
               <div className="LR">
                 <label>LR-RR No</label>
-                <input placeholder="LR-RR No" />
+                <input placeholder="LR-RR No" value={lrRrNo} onChange={(e) => setLrRrNo(e.target.value)} />
               </div>
               <div className="date-container">
                 <label>Date</label>
@@ -319,11 +557,7 @@ const handleGSTChange = (e) => {
                   <>
                   <div className="port">
                     <label>Port of Export</label>
-                    <select>
-                      <option>Select</option>
-                      <option>INDEA6 - AACHIVS SEZ/NOIDA </option>
-                    </select>
-                    {/* <input placeholder="Port No." /> */}
+                    <input placeholder="Port No." value={portOfExport} onChange={(e) => setPortOfExport(e.target.value)} />
                   </div>
                   {/* <div className="country">
                     <label>Country Name</label>
@@ -387,12 +621,37 @@ const handleGSTChange = (e) => {
               </div>
 
               <div className="purchase-search-row">
-                <input placeholder="Search Supplier" />
+                <input
+                  placeholder="Search Supplier"
+                  value={customerSearch}
+                  onChange={(e) => {
+                    setCustomerSearch(e.target.value);
+                    setShowCustomerDropdown(true);
+                  }}
+                  onFocus={() => setShowCustomerDropdown(true)}
+                />
 
-                <button className="new-btn">
+                <button className="new-btn" onClick={() => navigate("/Ledger", { state: { defaultGroup: "Sundry Creditors" } })}>
                   + New Supplier
                 </button>
               </div>
+              {showCustomerDropdown && (
+                <div className="purchase-customer-search-dropdown">
+                  {filteredSuppliers.length === 0 && (
+                    <div className="purchase-customer-search-empty">No suppliers found</div>
+                  )}
+                  {filteredSuppliers.map((cust) => (
+                    <div
+                      key={cust.id}
+                      className="purchase-customer-search-option"
+                      onClick={() => selectSupplier(cust)}
+                    >
+                      <div className="purchase-customer-search-name">{cust.name}</div>
+                      <div className="purchase-customer-search-gstin">{cust.gstin || ""}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
             </div>
 
@@ -582,9 +841,14 @@ const handleGSTChange = (e) => {
 
           {/* ================= TABLE ================= */}
             <div className="section-card">
-              {mode === "item" ? (
+              {voucherMode === "item" ? (
                 
                 <table className="purchase-table">
+                  <datalist id="purchase-items-datalist">
+                    {itemsList.map((it) => (
+                      <option key={it.id} value={it.name} />
+                    ))}
+                  </datalist>
                   <thead>
                     <tr>
                       <th>Description</th>
@@ -603,10 +867,13 @@ const handleGSTChange = (e) => {
                         <tr key={row.id}>
                           <td>
                             <input
+                              list="purchase-items-datalist"
+                              value={row.desc}
                               onChange={(e) => {
-                                const d = [...items];
-                                d[i].desc = e.target.value;
-                                setItems(d);
+                                const val = e.target.value;
+                                const match = itemsList.find((it) => it.name === val);
+                                handleChange(i, "desc", val);
+                                handleChange(i, "itemId", match ? match.id : null);
                               }}
                             />
                           </td>
@@ -614,37 +881,28 @@ const handleGSTChange = (e) => {
                           <td>
                             <input
                               type="number"
-                              onChange={(e) => {
-                                const d = [...items];
-                                d[i].qty = e.target.value;
-                                setItems(d);
-                              }}
+                              value={row.qty}
+                              onChange={(e) => handleChange(i, "qty", e.target.value)}
                             />
                           </td>
 
                           <td>
                             <input
                               type="number"
-                              onChange={(e) => {
-                                const d = [...items];
-                                d[i].rate = e.target.value;
-                                setItems(d);
-                              }}
+                              value={row.rate}
+                              onChange={(e) => handleChange(i, "rate", e.target.value)}
                             />
                           </td>
 
                           <td>
                             <select
-                              onChange={(e) => {
-                                const d = [...items];
-                                d[i].tax = e.target.value;
-                                setItems(d);
-                              }}
+                              value={row.tax}
+                              onChange={(e) => handleChange(i, "tax", e.target.value)}
                             >
-                              <option>0</option>
-                              <option>5</option>
-                              <option>12</option>
-                              <option>18</option>
+                              <option value="0">0</option>
+                              <option value="5">5</option>
+                              <option value="12">12</option>
+                              <option value="18">18</option>
                             </select>
                           </td>
 
@@ -686,35 +944,27 @@ const handleGSTChange = (e) => {
                         <td>
                           <input
                             placeholder="Purchase A/c"
-                            onChange={(e) => {
-                              const d = [...ledgers];
-                              d[i].ledger = e.target.value;
-                              setLedgers(d);
-                            }}
+                            value={row.ledger}
+                            onChange={(e) => handleLedgerChange(i, "ledger", e.target.value)}
                           />
                         </td>
 
                         <td>
                           <select
-                            onChange={(e) => {
-                              const d = [...ledgers];
-                              d[i].tax = e.target.value;
-                              setLedgers(d);
-                            }}
+                            value={row.tax}
+                            onChange={(e) => handleLedgerChange(i, "tax", e.target.value)}
                           >
-                            <option>5%</option>
-                            <option>12%</option>
-                            <option>18%</option>
+                            <option value="0">0%</option>
+                            <option value="5">5%</option>
+                            <option value="12">12%</option>
+                            <option value="18">18%</option>
                           </select>
                         </td>
 
                         <td>
                           <input
-                            onChange={(e) => {
-                              const d = [...ledgers];
-                              d[i].amount = e.target.value;
-                              setLedgers(d);
-                            }}
+                            value={row.amount}
+                            onChange={(e) => handleLedgerChange(i, "amount", e.target.value)}
                           />
                         </td>
                         <td className="purchase-delete-cell">
@@ -741,24 +991,15 @@ const handleGSTChange = (e) => {
               <button
                 className="add-btn"
                 onClick={() => {
-                  if (mode === "item") {
-                    setItems([
-                      ...items,
-                      {
-                        id: Date.now(),
-                        desc: "",
-                        qty: "",
-                        rate: "",
-                        tax: "0"
-                      }
-                    ]);
+                  if (voucherMode === "item") {
+                    addRow();
                   } else {
                     setLedgers([
                       ...ledgers,
                       {
                         id: Date.now(),
                         ledger: "",
-                        tax: "",
+                        tax: "0",
                         amount: ""
                       }
                     ]);
@@ -788,8 +1029,18 @@ const handleGSTChange = (e) => {
 
           {/* ACTION */}
           <div className="pur-actions">
-            <button className="pur-save-btn">Save</button>
-            <button className="pur-cancel-btn">Cancel</button>
+            <button className="pur-save-btn" onClick={() => handleSave("save")} disabled={saving}>
+              <i className="fas fa-save"></i>
+              {saving ? "Saving..." : "Save"}
+            </button>
+            <button className="pur-save-btn" onClick={() => handleSave("send")} disabled={saving}>
+              <i className="fas fa-paper-plane"></i>
+              Save & Post
+            </button>
+            <button className="pur-cancel-btn" onClick={resetForm}>
+              <i className="fas fa-times"></i>
+              Cancel
+            </button>
           </div>
 
         </div>
