@@ -199,6 +199,9 @@ const resetForm = () => {
   setVehicleNo("");
   setLrRrNo("");
   setShippingBillNo("");
+  setGstin("");
+  setGstData(null);
+  setGstError("");
   setNarration("");
   setPaymentTerms("");
   setPoTerms("");
@@ -247,6 +250,7 @@ const handleSave = async (mode = "save") => {
     payment_terms: paymentTerms,
     delivery_date: shippingDate.toISOString().split("T")[0],
     transporter_name: transporter,
+    transporter_gstin: gstin,
     vehicle_no: vehicleNo,
     lr_rr_no: lrRrNo,
     port_of_export: portOfExport,

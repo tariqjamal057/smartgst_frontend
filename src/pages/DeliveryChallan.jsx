@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useOutletContext } from "react-router-dom";
 import DatePicker from "react-datepicker";
 import * as services from "../api/services";
@@ -13,16 +13,29 @@ export default function DeliveryChallan() {
   const { collapsed } = useOutletContext();
 
   /* ================= PART 1 ================= */
-  const [challanNo, setChallanNo] = useState("DC-01");
+  const DC_PREFIX = "DC/2025-26";
+  const [challanNo, setChallanNo] = useState("");
+  const [currentCount, setCurrentCount] = useState(1);
   const [invoiceDate, setInvoiceDate] = useState(new Date());
   const [date, setDate] = useState("");
   const [vehicleNo, setVehicleNo] = useState("");
   const [docNo, setDocNo] = useState("");
   const [transporterGST, setTransporterGST] = useState("");
+  const [gstData, setGstData] = useState(null);
+  const [gstLoading, setGstLoading] = useState(false);
+  const [gstError, setGstError] = useState("");
   const [name, setName] = useState("");
   const [lrNo, setLrNo] = useState("");
-  const [dispatchDate, setDispatchDate] = useState("");
+  const [dispatchDate, setDispatchDate] = useState(new Date());
   const [challanType, setChallanType] = useState("");
+  const [ewayBillNo, setEwayBillNo] = useState("");
+  const [ewayBillDate, setEwayBillDate] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [customers, setCustomers] = useState([]);
+  const [itemsList, setItemsList] = useState([]);
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const [selectedParty, setSelectedParty] = useState(null);
    const [customer,setCustomer] = useState({});
    const [showCustomerPopup, setShowCustomerPopup] = useState(false);
     const [editBilled, setEditBilled] = useState(false);
@@ -40,33 +53,274 @@ export default function DeliveryChallan() {
    const [selectedState, setSelectedState] = useState("");
 
   /* ================= PART 2 ================= */
-  const [billedTo, setBilledTo] = useState({
-        name: "SALVIA GRAFICS PVT LTD",
-        address: "2652/F Kuti Choraha, Near PVS Mall, Garh Road",
-        city: "Meerut-250002",
-        contact: "Vikram Singh",
-        mobile: "9897012345",
-        pan: "ABMCS5888A",
-        gstin: "09ABMCS5888A12U",
-        pos: "09-Uttar Pradesh"
-      });
-  
-      const [shippedTo, setShippedTo] = useState({
-        name: "SALVIA GRAFICS PVT LTD",
-        address: "2652/F Kuti Choraha, Near PVS Mall, Garh Road",
-        city: "Meerut-250002",
-        contact: "Vikram Singh",
-        mobile: "9897012345",
-        pan: "ABMCS5888A",
-        gstin: "09ABMCS5888A12U",
-        pos: "09-Uttar Pradesh"
-      });
+  const blankAddress = () => ({
+    name: "", address: "", city: "", contact: "", mobile: "", pan: "", gstin: "", pos: ""
+  });
+
+  const [billedTo, setBilledTo] = useState(blankAddress());
+
+      const [shippedTo, setShippedTo] = useState(blankAddress());
   const [address, setAddress] = useState("");
+
+  /* ================= DATA & LOGIC ================= */
+  const pad4 = (n) => String(n).padStart(4, "0");
+  const generateVoucher = () => `${DC_PREFIX}/${pad4(currentCount)}`;
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [custRes, itemRes, chlRes] = await Promise.all([
+          services.getParties({ type: "customer" }),
+          services.getItems({}),
+          services.getDeliveryChallans({})
+        ]);
+        const custs = Array.isArray(custRes.data) ? custRes.data : custRes.data?.results ?? [];
+        setCustomers(custs);
+        setItemsList(Array.isArray(itemRes.data) ? itemRes.data : itemRes.data?.results ?? []);
+        const chls = Array.isArray(chlRes.data) ? chlRes.data : chlRes.data?.results ?? [];
+        const nums = chls
+          .map((c) => c.challan_number || "")
+          .filter((v) => v.startsWith(DC_PREFIX + "/"))
+          .map((v) => Number(v.replace(DC_PREFIX + "/", "").replace(/\D/g, "")) || 0);
+        const max = nums.length ? Math.max(...nums) : 0;
+        setCurrentCount(max + 1);
+      } catch (e) {
+        console.error("Failed to load delivery challan data:", e);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    setChallanNo(generateVoucher());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentCount]);
+
+  const filteredCustomers = useMemo(() => {
+    const q = customerSearch.trim().toLowerCase();
+    if (!q) return customers;
+    return customers.filter((c) =>
+      (c.name || "").toLowerCase().includes(q) ||
+      (c.gstin || "").toLowerCase().includes(q)
+    );
+  }, [customers, customerSearch]);
+
+  const selectCustomer = (cust) => {
+    setCustomer(cust);
+    setCustomerSearch(cust.name);
+    setSelectedParty(cust);
+    setShowCustomerDropdown(false);
+    const billed = {
+      name: cust.name || "",
+      address: cust.billing_address || "",
+      city: "",
+      contact: cust.contact || "",
+      mobile: cust.phone || "",
+      pan: cust.pan || "",
+      gstin: cust.gstin || "",
+      pos: cust.state || ""
+    };
+    setBilledTo(billed);
+    setShippedTo({ ...billed });
+  };
+
+  const isValidGST = (gst) => {
+    const regex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[A-Z0-9]{1}Z[A-Z0-9]{1}$/;
+    return regex.test(gst);
+  };
+
+  const mapRegistrationToGstType = (reg) => {
+    const r = (reg || "").toLowerCase();
+    if (r.includes("composition")) return "REGISTERED_BUSINESS_COMPOSITION";
+    if (r.includes("regular") || r.includes("sez") || r.includes("export") || r.includes("e-commerce") || r.includes("distributor")) return "REGISTERED_BUSINESS_REGULAR";
+    return "UNREGISTERED";
+  };
+
+  const fetchGstForCustomer = async () => {
+    const gstin = (customer.gstin || "").trim().toUpperCase();
+    if (!isValidGST(gstin)) { alert("Invalid GSTIN"); return; }
+    try {
+      const res = await services.lookupGst(gstin);
+      const data = res.data;
+      if (data.success) {
+        setCustomer((prev) => ({
+          ...prev,
+          gstin: data.gstin || gstin,
+          name: data.company_name || prev.name,
+          address1: data.address || prev.address1,
+          address2: data.branch_address || prev.address2,
+          email: data.email || prev.email,
+          contact: data.contact_person || prev.contact,
+          mobile: data.contact_no || prev.mobile,
+          state: data.state || prev.state
+        }));
+        if (data.state) setSelectedState(data.state);
+      } else {
+        alert("GST not found");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("GST lookup failed: " + (error.response?.data?.detail || error.message));
+    }
+  };
+
+  const saveCustomer = async () => {
+    if (!customer.name || !customer.name.trim()) { alert("Party Name required"); return; }
+    const pan = (customer.pan || "").trim().toUpperCase();
+    if (pan && !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(pan)) { alert("Invalid PAN: must be 10 characters (e.g. ABCDE1234F)"); return; }
+    const gstin = (customer.gstin || "").trim().toUpperCase();
+    if (gstin && !isValidGST(gstin)) { alert("Invalid GSTIN"); return; }
+    try {
+      const res = await services.createParty({
+        name: customer.name.trim(),
+        party_type: "CUSTOMER",
+        gstin,
+        phone: customer.contact || "",
+        email: customer.email || "",
+        pan,
+        state: customer.state || "",
+        billing_address: [customer.address1, customer.address2, customer.pin].filter(Boolean).join(", "),
+        gst_type: mapRegistrationToGstType(customer.registration)
+      });
+      const created = res.data;
+      setCustomers((prev) => [...prev, created]);
+      selectCustomer(created);
+      setShowCustomerPopup(false);
+      alert("Customer created successfully!");
+    } catch (err) {
+      const data = err.response?.data;
+      const msg =
+        (typeof data === "string" && data) ||
+        (Array.isArray(data) && data[0]) ||
+        data?.detail ||
+        data?.name?.[0] ||
+        err.message ||
+        "Failed to save customer";
+      alert(msg);
+    }
+  };
+
+  const mapChallanType = (t) => (t === "Job Work" ? "JOB_WORK" : "SALES");
+
+  const fmtDate = (d) => (d ? new Date(d).toISOString().split("T")[0] : "");
+
+  const validateGST = async (value) => {
+    if (value.length !== 15) return;
+    try {
+      setGstLoading(true);
+      setGstError("");
+      setGstData(null);
+      const res = await services.lookupGst(value);
+      setGstData(res.data);
+    } catch (err) {
+      setGstError("Error validating GSTIN");
+    } finally {
+      setGstLoading(false);
+    }
+  };
+
+  const handleGSTChange = (e) => {
+    const value = e.target.value.toUpperCase();
+    setTransporterGST(value);
+    if (value.length === 15) {
+      validateGST(value);
+    } else {
+      setGstData(null);
+      setGstError("");
+    }
+  };
+
+  const resetForm = () => {
+    setItems([{ id: Date.now() + Math.random(), itemId: null, product: "", description: "", hsn: "", qty: "", rate: "", tax: "0" }]);
+    setCustomer({});
+    setCustomerSearch("");
+    setSelectedParty(null);
+    setShowCustomerDropdown(false);
+    setBilledTo(blankAddress());
+    setShippedTo(blankAddress());
+    setVehicleNo("");
+    setDocNo("");
+    setTransporterGST("");
+    setGstData(null);
+    setGstError("");
+    setName("");
+    setLrNo("");
+    setDispatchDate(new Date());
+    setChallanType("");
+    setEwayBillNo("");
+    setEwayBillDate("");
+  };
+
+  const handleSave = async (mode = "save") => {
+    const r2 = (n) => Math.round(n * 100) / 100;
+    const lines = items.map((i) => {
+      const qty = Number(i.qty) || 0;
+      const rate = Number(i.rate) || 0;
+      const tax = Number(i.tax) || 0;
+      const base = qty * rate;
+      const gst = (base * tax) / 100;
+      return {
+        item: i.itemId || null,
+        quantity: qty,
+        unit: "NONE",
+        rate: r2(rate),
+        taxable_value: r2(base),
+        gst_rate: tax,
+        cgst: r2(gst / 2),
+        sgst: r2(gst / 2),
+        igst: 0,
+        cess: 0,
+        amount: r2(base + gst)
+      };
+    });
+
+    if (!lines.length) { alert("Add at least one item line."); return; }
+    if (lines.some((l) => !l.item)) { alert("Select a product for every item line."); return; }
+
+    const payload = {
+      challan_number: challanNo || generateVoucher(),
+      date: fmtDate(invoiceDate),
+      challan_type: mapChallanType(challanType),
+      status: "DRAFT",
+      party: selectedParty?.id || null,
+      billing_address: [billedTo?.name, billedTo?.address, billedTo?.city].filter(Boolean).join(", "),
+      shipping_address: [shippedTo?.name, shippedTo?.address, shippedTo?.city].filter(Boolean).join(", "),
+      state_of_supply: billedTo?.pos || "",
+      transporter_name: name,
+      vehicle_no: vehicleNo,
+      lr_rr_no: lrNo,
+      narration: "",
+      total_amount: r2(total),
+      eway_bill_no: ewayBillNo,
+      items: lines
+    };
+
+    setSaving(true);
+    try {
+      await services.createDeliveryChallan(payload);
+      alert("Delivery Challan saved successfully!");
+      setCurrentCount((prev) => prev + 1);
+      resetForm();
+      if (mode === "print") window.print();
+    } catch (err) {
+      const data = err?.response?.data || err;
+      const msg =
+        (typeof data === "string" && data) ||
+        (Array.isArray(data) && data[0]) ||
+        data?.detail ||
+        data?.non_field_errors?.[0] ||
+        JSON.stringify(data);
+      alert(msg || "Failed to save Delivery Challan");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   /* ================= PART 3 ================= */
   const [items, setItems] = useState([
   {
-    id: Date.now(),
+    id: Date.now() + Math.random(),
+    itemId: null,
     product: "",
     description: "",
     hsn: "",
@@ -75,17 +329,13 @@ export default function DeliveryChallan() {
     tax: "0"
   }
 ]);
-  const [voucherCount, setVoucherCount] = useState(1);
-  const generateVoucher = () => {
-    const number = String(voucherCount).padStart(2, "0");
-    return `DC-${number}`;
-  };
 
   const addRow = () => {
     setItems([
   ...items,
   {
     id: Date.now() + Math.random(),
+    itemId: null,
     product: "",
     description: "",
     hsn: "",
@@ -167,7 +417,8 @@ export default function DeliveryChallan() {
                   maxDate={new Date()}   // prevent future date
                   className="dc-date-input"
                   onChangeRaw={(e) => {
-                    let value = e.target.value;
+                    if (!e || !e.target) return;
+                    let value = e.target.value || "";
                     // 🔥 limit total length (dd/MM/yyyy = 10 chars)
                     if (value.length > 10) {
                       value = value.slice(0, 10);
@@ -201,7 +452,21 @@ export default function DeliveryChallan() {
               </div>
               <div className="dc-form-group">
                 <label>Transporter GSTIN</label>
-                <input className="dc-input" onChange={(e) => setTransporterGST(e.target.value)} />
+                <input
+                  className="dc-input"
+                  value={transporterGST}
+                  onChange={handleGSTChange}
+                  placeholder="Transport GSTIN"
+                />
+                {gstLoading && <div className="dc-gst-status">Validating...</div>}
+                {gstError && <div className="dc-gst-error">{gstError}</div>}
+                {gstData && (
+                  <div className="dc-gst-result-box">
+                    <p><strong>{gstData.name}</strong></p>
+                    <p>{gstData.state}</p>
+                    <p>Status: {gstData.status}</p>
+                  </div>
+                )}
               </div>
               <div className="dc-form-group">
                 <label>Name</label>
@@ -214,13 +479,14 @@ export default function DeliveryChallan() {
               <div className="dc-form-group">
                 <label>Dispatch Date</label>
                 <DatePicker
-                  selected={invoiceDate}
-                  onChange={(date) => setInvoiceDate(date)}
+                  selected={dispatchDate}
+                  onChange={(d) => setDispatchDate(d)}
                   dateFormat="dd/MM/yyyy"
                   maxDate={new Date()}   // prevent future date
                   className="dc-date-input"
                   onChangeRaw={(e) => {
-                    let value = e.target.value;
+                    if (!e || !e.target) return;
+                    let value = e.target.value || "";
                     // 🔥 limit total length (dd/MM/yyyy = 10 chars)
                     if (value.length > 10) {
                       value = value.slice(0, 10);
@@ -251,8 +517,33 @@ export default function DeliveryChallan() {
                 <div className="search-box">
                   <div className="debit-search-input-wrapper">
                     <FaSearch className="sale-search-icon" />
-                    <input type="text" placeholder="Search customer..." />
+                    <input
+                      type="text"
+                      placeholder="Search customer..."
+                      value={customerSearch}
+                      onChange={(e) => {
+                        setCustomerSearch(e.target.value);
+                        setShowCustomerDropdown(true);
+                      }}
+                      onFocus={() => setShowCustomerDropdown(true)}
+                      onBlur={() => setTimeout(() => setShowCustomerDropdown(false), 150)}
+                    />
                   </div>
+                  {showCustomerDropdown && filteredCustomers.length > 0 && (
+                    <div className="dc-customer-search-dropdown">
+                      {filteredCustomers.map((c) => (
+                        <div
+                          key={c.id}
+                          className="dc-customer-search-option"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => selectCustomer(c)}
+                        >
+                          <div className="dc-customer-search-name">{c.name}</div>
+                          <div className="dc-customer-search-type">{c.gstin || ""}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <button
                     className="dc-new-customer-btn"
                     onClick={() => setShowCustomerPopup(true)}
@@ -295,7 +586,7 @@ export default function DeliveryChallan() {
                               onChange={(e)=>setCustomer({...customer,gstin:e.target.value})}
                             />
 
-                            <button className="cust-get-btn">Get Data</button>
+                            <button className="cust-get-btn" onClick={fetchGstForCustomer}>Get Data</button>
                           </div>
 
                           <input className="cust-input" placeholder="Party Name"
@@ -400,7 +691,7 @@ export default function DeliveryChallan() {
 
                       {/* ACTIONS */}
                       <div className="cust-actions">
-                        <button className="cust-save-btn">Save Customer</button>
+                        <button className="cust-save-btn" onClick={saveCustomer}>Save Customer</button>
                       </div>
 
                     </div>
@@ -638,9 +929,36 @@ export default function DeliveryChallan() {
                           <FaTrash />
                         </button>
                       </td>
-                      <td><input className="dc-input" onChange={(e) => handleChange(i, "product", e.target.value)} /></td>
-                      <td><input className="dc-input" onChange={(e) => handleChange(i, "description", e.target.value)} /></td>
-                      <td><input className="dc-input" onChange={(e) => handleChange(i, "hsn", e.target.value)} /></td>
+                      <td>
+                        <select
+                          className="dc-select"
+                          value={item.product || ""}
+                          onChange={(e) => {
+                            const d = [...items];
+                            const val = e.target.value;
+                            const match = itemsList.find((it) => String(it.id) === val);
+                            if (match) {
+                              d[i].product = match.name;
+                              d[i].itemId = match.id;
+                              d[i].description = match.description || match.name || "";
+                              d[i].hsn = match.hsn_code || "";
+                            } else {
+                              d[i].product = "";
+                              d[i].itemId = null;
+                              d[i].description = "";
+                              d[i].hsn = "";
+                            }
+                            setItems(d);
+                          }}
+                        >
+                          <option value="">Select Product</option>
+                          {itemsList.map((it) => (
+                            <option key={it.id} value={it.id}>{it.name}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td><input className="dc-input" value={item.description} onChange={(e) => handleChange(i, "description", e.target.value)} /></td>
+                      <td><input className="dc-input" value={item.hsn} onChange={(e) => handleChange(i, "hsn", e.target.value)} /></td>
                       <td><input className="dc-input" type="number" onChange={(e) => handleChange(i, "qty", e.target.value)} /></td>
                       <td><input className="dc-input" type="number" onChange={(e) => handleChange(i, "rate", e.target.value)} /></td>
                       <td>
@@ -674,12 +992,21 @@ export default function DeliveryChallan() {
                 <div className="eway-form">
                   <div className="eway-field">
                     <label>E-way Bill No</label>
-                    <input type="text" placeholder="Enter E-way Bill No" />
+                    <input
+                      type="text"
+                      placeholder="Enter E-way Bill No"
+                      value={ewayBillNo}
+                      onChange={(e) => setEwayBillNo(e.target.value)}
+                    />
                   </div>
 
                   <div className="eway-field">
                     <label>E-way Bill Date</label>
-                    <input type="date" />
+                    <input
+                      type="date"
+                      value={ewayBillDate}
+                      onChange={(e) => setEwayBillDate(e.target.value)}
+                    />
                   </div>
                 </div>
               </div>
@@ -694,58 +1021,9 @@ export default function DeliveryChallan() {
               </div>
 
               <div className="dc-footer-actions">
-                <button onClick={async () => {
-                  try {
-                    const payload = {
-                      challan_no: challanNo,
-                      date: invoiceDate?.toISOString?.()?.split("T")[0] || "",
-                      challan_type: challanType,
-                      vehicle_no: vehicleNo,
-                      doc_no: docNo,
-                      transporter_gstin: transporterGST,
-                      transporter_name: name,
-                      lr_no: lrNo,
-                      dispatch_date: dispatchDate,
-                      billed_to: billedTo,
-                      shipped_to: shippedTo,
-                      items: items.map(({ id, ...rest }) => rest),
-                      subtotal,
-                      total_tax: totalTax,
-                      total,
-                    };
-                    await services.createDeliveryChallan(payload);
-                    alert("Delivery Challan saved successfully!");
-                  } catch (err) {
-                    alert("Failed to save: " + (err?.response?.data?.detail || err.message));
-                  }
-                }}>Save</button>
-                <button onClick={async () => {
-                  try {
-                    const payload = {
-                      challan_no: challanNo,
-                      date: invoiceDate?.toISOString?.()?.split("T")[0] || "",
-                      challan_type: challanType,
-                      vehicle_no: vehicleNo,
-                      doc_no: docNo,
-                      transporter_gstin: transporterGST,
-                      transporter_name: name,
-                      lr_no: lrNo,
-                      dispatch_date: dispatchDate,
-                      billed_to: billedTo,
-                      shipped_to: shippedTo,
-                      items: items.map(({ id, ...rest }) => rest),
-                      subtotal,
-                      total_tax: totalTax,
-                      total,
-                    };
-                    await services.createDeliveryChallan(payload);
-                    alert("Saved! Printing...");
-                    window.print();
-                  } catch (err) {
-                    alert("Failed to save: " + (err?.response?.data?.detail || err.message));
-                  }
-                }}>Save & Print</button>
-                <button onClick={() => window.history.back()}>Cancel</button>
+                <button disabled={saving} onClick={() => handleSave("save")}>Save</button>
+                <button disabled={saving} onClick={() => handleSave("print")}>Save & Print</button>
+                <button onClick={resetForm}>Cancel</button>
               </div>
             </div>
 
