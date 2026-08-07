@@ -179,10 +179,11 @@ export default function SaleOrder() {
   useEffect(() => {
     (async () => {
       try {
-        const [custRes, itemRes, vendRes] = await Promise.all([
+        const [custRes, itemRes, vendRes, ordRes] = await Promise.all([
           services.getParties({ type: "customer" }),
           services.getItems({}),
-          services.getParties({ type: "vendor" })
+          services.getParties({ type: "vendor" }),
+          services.getSaleOrders({})
         ]);
         const cust = Array.isArray(custRes.data) ? custRes.data : custRes.data?.results ?? [];
         const itm = Array.isArray(itemRes.data) ? itemRes.data : itemRes.data?.results ?? [];
@@ -190,6 +191,14 @@ export default function SaleOrder() {
         setCustomers(cust);
         setItemsList(itm);
         setTransporters(vend);
+        const orders = Array.isArray(ordRes.data) ? ordRes.data : ordRes.data?.results ?? [];
+        const prefix = crConfig.prefix + "/";
+        const nums = orders
+          .map((o) => o.order_number || "")
+          .filter((v) => v.startsWith(prefix))
+          .map((v) => Number(v.replace(prefix, "").replace(/\D/g, "")) || 0);
+        const max = nums.length ? Math.max(...nums) : 0;
+        if (max > 0) setCurrentCount(max + 1);
       } catch (e) {
         console.error("Failed to load data:", e);
       }
@@ -322,7 +331,7 @@ export default function SaleOrder() {
                   <div className="so-voucher-row">
                     <label>Voucher No:</label>
                     <span className="so-voucher-badge">
-                      {generateVoucher()}
+                      {soNo}
                     </span>
                   </div>
                 </div>

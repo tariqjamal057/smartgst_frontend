@@ -479,6 +479,26 @@ const handleGSTChange = (e) => {
   }
 }, [currentCount, invoiceConfig, manualEntry]);
 
+  // load existing invoices so new invoice numbers don't collide
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await services.getSalesInvoices({});
+        const invoices = Array.isArray(res.data) ? res.data : res.data?.results ?? [];
+        const prefix = invoiceConfig.prefix + "/";
+        const nums = invoices
+          .map((v) => v.voucher_number || "")
+          .filter((v) => v.startsWith(prefix))
+          .map((v) => Number(v.replace(prefix, "").replace(/\D/g, "")) || 0);
+        const max = nums.length ? Math.max(...nums) : 0;
+        setCurrentCount(max + 1);
+      } catch (e) {
+        console.error("Failed to load existing invoices:", e);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
 
     const [selectedEco, setSelectedEco] = useState("");
     const [newEco, setNewEco] = useState("");
@@ -555,7 +575,7 @@ const handleGSTChange = (e) => {
                   <h2>Sale Invoice</h2>
                   <div className="voucher-row">
                     <label>Voucher No:</label>
-                    <span className="sale-voucher-value">{generateVoucher()}</span>
+                    <span className="sale-voucher-value">{invoiceNo}</span>
                   </div>
                 </div>
               </div>
