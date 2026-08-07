@@ -134,6 +134,45 @@
   margin-bottom: 8px;
 }
 
+.ledger-search-box {
+  position: relative;
+  width: 100%;
+}
+.ledger-search-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 200px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 50;
+}
+.ledger-search-option {
+  padding: 6px 10px;
+  cursor: pointer;
+  border-bottom: 1px solid #f3f4f6;
+}
+.ledger-search-option:hover {
+  background: #eef2ff;
+}
+.ledger-search-name {
+  font-size: 12px;
+  color: #111827;
+}
+.ledger-search-type {
+  font-size: 11px;
+  color: #6b7280;
+}
+.ledger-search-empty {
+  padding: 8px 10px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
 .journal-row input,
 .journal-row select {
   width: 100%;

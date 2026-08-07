@@ -1,4 +1,4 @@
-  import { useState } from "react";
+  import { useState, useEffect } from "react";
   import { useOutletContext } from "react-router-dom";
   import DatePicker from "react-datepicker";
   import { FaTrash ,FaSearch,FaUniversity,FaTruck,FaPen,FaSave,
@@ -13,16 +13,25 @@
     const { collapsed } = useOutletContext();
     const [invoiceDate, setInvoiceDate] = useState(new Date());
 
-    const [date, setDate] = useState("");
-    const [ledger, setLedger] = useState("");
-    const [amount, setAmount] = useState("");
     const [narration, setNarration] = useState("");
-    const [voucherNo] = useState("JOU-01");
-    const [mode, setMode] = useState("single");
+    const [saving, setSaving] = useState(false);
+
+    /* ================= VOUCHER NUMBER ================= */
+    const VOUCHER_PREFIX = "JOU/2025-26";
+    const [currentCount, setCurrentCount] = useState(1);
+    const [voucherNo, setVoucherNo] = useState(`${VOUCHER_PREFIX}/0001`);
+    useEffect(() => {
+      setVoucherNo(`${VOUCHER_PREFIX}/${String(currentCount).padStart(4, "0")}`);
+    }, [currentCount]);
+
+    const [accounts, setAccounts] = useState([]);
+    const [invoices, setInvoices] = useState([]);
+    const [ledgerOpen, setLedgerOpen] = useState(null);
 
     const [rows, setRows] = useState([
   {
     type: "dr",
+    account: null,
     ledger: "",
     adjust: "",
     invoice: "",
@@ -30,23 +39,130 @@
   }
 ]);
 
-    const handleSave = async () => {
+  useEffect(() => {
+    (async () => {
       try {
-        const payload = {
-          voucher_number: voucherNo,
-          date: date || invoiceDate.toISOString().split("T")[0],
-          narration: narration,
-          entries: rows.map(r => ({
-            type: r.type === "dr" ? "DEBIT" : "CREDIT",
-            ledger: r.ledger || null,
-            amount: Number(r.amount) || 0,
-          })),
+        const [accRes, invRes, jouRes] = await Promise.all([
+          services.getAccounts({}),
+          services.getSalesInvoices({}),
+          services.getJournalVouchers({})
+        ]);
+        const acc = Array.isArray(accRes.data) ? accRes.data : accRes.data?.results ?? [];
+        const inv = Array.isArray(invRes.data) ? invRes.data : invRes.data?.results ?? [];
+        const journals = Array.isArray(jouRes.data) ? jouRes.data : jouRes.data?.results ?? [];
+        setAccounts(acc);
+        setInvoices(inv);
+        const pfx = VOUCHER_PREFIX + "/";
+        const max = journals.reduce((m, j) => {
+          const n = Number(String(j.voucher_number || "").replace(pfx, "").replace(/\D/g, ""));
+          return n > m ? n : m;
+        }, 0);
+        if (max > 0) setCurrentCount(max + 1);
+      } catch (e) {
+        console.error("Failed to load data:", e);
+      }
+    })();
+  }, []);
+
+  const filterAccounts = (search) => {
+    const q = (search || "").trim().toLowerCase();
+    if (!q) return accounts;
+    return accounts.filter(
+      (a) =>
+        (a.name || "").toLowerCase().includes(q) ||
+        (a.account_type || "").toLowerCase().includes(q)
+    );
+  };
+
+  const handleRowChange = (index, field, value) => {
+    const updated = [...rows];
+    updated[index][field] = value;
+    setRows(updated);
+  };
+
+  const handleLedgerChange = (index, value) => {
+    const updated = [...rows];
+    updated[index].ledger = value;
+    const match = accounts.find((a) => a.name === value);
+    updated[index].account = match ? match.id : null;
+    setRows(updated);
+  };
+
+  const selectLedger = (index, account) => {
+    const updated = [...rows];
+    updated[index].ledger = account.name;
+    updated[index].account = account.id;
+    setRows(updated);
+    setLedgerOpen(null);
+  };
+
+  const resetForm = () => {
+    setRows([
+      {
+        type: "dr",
+        account: null,
+        ledger: "",
+        adjust: "",
+        invoice: "",
+        amount: ""
+      }
+    ]);
+    setNarration("");
+  };
+
+    const handleSave = async (action = "save") => {
+      const r2 = (n) => Math.round(n * 100) / 100;
+      const rowsToSave = rows.filter(
+        (r) => r.account && (Number(r.amount) || 0) > 0
+      );
+      if (rowsToSave.length === 0) {
+        alert("Add at least one ledger entry with an amount.");
+        return;
+      }
+      const missingAccount = rows.find(
+        (r) => (Number(r.amount) || 0) > 0 && !r.account
+      );
+      if (missingAccount) {
+        alert("Select a valid account from the ledger list for every entry.");
+        return;
+      }
+      const entries = rowsToSave.map((r) => {
+        const amount = r2(Number(r.amount) || 0);
+        return {
+          account: r.account,
+          debit: r.type === "dr" ? amount : 0,
+          credit: r.type === "cr" ? amount : 0
         };
-        await services.createJournalVoucher(payload);
-        alert("Journal saved!");
+      });
+      const payload = {
+        voucher_number: voucherNo,
+        date: invoiceDate.toISOString().split("T")[0],
+        narration: narration,
+        entries: entries
+      };
+      try {
+        setSaving(true);
+        const res = await services.createJournalVoucher(payload);
+        setCurrentCount((prev) => prev + 1);
+        if (action === "send") {
+          await services.postJournalVoucher(res.data.id);
+        }
+        alert(action === "send" ? "Journal saved and posted successfully!" : "Journal saved successfully!");
+        resetForm();
       } catch (err) {
-        console.error(err);
-        alert("Failed to save Journal");
+        const data = err.response?.data;
+        const detail =
+          (typeof data === "string" && data) ||
+          (Array.isArray(data) && data[0]) ||
+          data?.detail ||
+          data?.voucher_number?.[0] ||
+          data?.financial_year?.[0] ||
+          data?.entries?.[0] ||
+          JSON.stringify(data) ||
+          err.message;
+        alert("Failed to save Journal: " + detail);
+      } finally {
+        setSaving(false);
       }
     };
   const totalDr = rows.reduce(
@@ -272,16 +388,36 @@ const totalCr = rows.reduce(
                 <option value="cr">CR</option>
               </select>
               {/* LEDGER */}
-              <input
-                className="col-ledger"
-                placeholder="Ledger Name"
-                value={row.ledger}
-                onChange={(e) => {
-                  const updated = [...rows];
-                  updated[i].ledger = e.target.value;
-                  setRows(updated);
-                }}
-              />
+              <div className="ledger-search-box">
+                <input
+                  className="col-ledger"
+                  placeholder="Ledger Name"
+                  value={row.ledger}
+                  onFocus={() => setLedgerOpen(i)}
+                  onBlur={() =>
+                    setTimeout(() => setLedgerOpen((cur) => (cur === i ? null : cur)), 150)
+                  }
+                  onChange={(e) => handleLedgerChange(i, e.target.value)}
+                />
+                {ledgerOpen === i && (
+                  <div className="ledger-search-dropdown">
+                    {filterAccounts(row.ledger).length === 0 && (
+                      <div className="ledger-search-empty">No accounts found</div>
+                    )}
+                    {filterAccounts(row.ledger).map((a) => (
+                      <div
+                        key={a.id}
+                        className="ledger-search-option"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => selectLedger(i, a)}
+                      >
+                        <div className="ledger-search-name">{a.name}</div>
+                        <div className="ledger-search-type">{a.account_type}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
               {/* ADJUST */}
               <select
                 className="col-adjust"
@@ -303,16 +439,18 @@ const totalCr = rows.reduce(
               {/* INVOICE */}
 
               {row.adjust === "invoice" ? (
-                <input
+                <select
                   className="col-invoice"
-                  placeholder="Invoice No"
                   value={row.invoice}
-                  onChange={(e) => {
-                    const updated = [...rows];
-                    updated[i].invoice = e.target.value;
-                    setRows(updated);
-                  }}
-                />
+                  onChange={(e) => handleRowChange(i, "invoice", e.target.value)}
+                >
+                  <option value="">Select Invoice</option>
+                  {invoices.map((inv) => (
+                    <option key={inv.id} value={inv.voucher_number}>
+                      {inv.voucher_number}
+                    </option>
+                  ))}
+                </select>
               ) : (
                 <input
                   className="col-invoice disabled"
@@ -343,6 +481,7 @@ const totalCr = rows.reduce(
                       ...updated,
                       {
                         type: "dr",
+                        account: null,
                         ledger: "",
                         adjust: "",
                         invoice: "",
@@ -375,6 +514,7 @@ const totalCr = rows.reduce(
                       ...updated,
                       {
                         type: "dr",
+                        account: null,
                         ledger: "",
                         adjust: "",
                         invoice: "",
@@ -426,8 +566,9 @@ const totalCr = rows.reduce(
             </div>
             {/* ACTIONS */}
             <div className="J-actions">
-              <button className="J-save-btn" onClick={handleSave}><FaSave />Save</button>
-              <button className="j-cancel-btn"><FaTimes />Cancel</button>
+              <button className="J-save-btn" onClick={() => handleSave("save")} disabled={saving}><FaSave />{saving ? "Saving..." : "Save"}</button>
+              <button className="J-save-btn" onClick={() => handleSave("send")} disabled={saving}><FaPaperPlane />Save & Post</button>
+              <button className="j-cancel-btn" onClick={resetForm}><FaTimes />Cancel</button>
             </div>
           </div>
         </div>
