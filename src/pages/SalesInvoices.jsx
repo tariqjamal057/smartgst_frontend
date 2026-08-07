@@ -314,6 +314,7 @@ const [selectedState, setSelectedState] = useState("");
   };
 
   const handleSave = async (mode = "save") => {
+    const r2 = (n) => Math.round(n * 100) / 100;
     const line = (i) => {
       const tax = rcmApplicable ? 0 : Number(i.tax) || 0;
       let base, qty, rate, discount;
@@ -332,20 +333,20 @@ const [selectedState, setSelectedState] = useState("");
       if (typeOfSupply === "Export_with_payment" || typeOfSupply === "SEZ") { igst = gst; }
       return {
         item: i.itemId || null,
-        mrp: rate,
+        mrp: r2(rate),
         quantity: qty,
         unit: "NONE",
-        price: rate,
+        price: r2(rate),
         price_type: "WITHOUT_TAX",
         discount_percentage: qty * rate > 0 ? Math.min(999.99, Number(((discount * 100) / (qty * rate)).toFixed(2))) : 0,
-        discount_amount: discount,
-        taxable_value: base,
+        discount_amount: r2(discount),
+        taxable_value: r2(base),
         gst_rate: tax,
-        cgst,
-        sgst,
-        igst,
+        cgst: r2(cgst),
+        sgst: r2(sgst),
+        igst: r2(igst),
         cess: 0,
-        amount: base + gst
+        amount: r2(base + gst)
       };
     };
 
@@ -355,8 +356,8 @@ const [selectedState, setSelectedState] = useState("");
     const totalSgst = lines.reduce((s, l) => s + l.sgst, 0);
     const totalIgst = lines.reduce((s, l) => s + l.igst, 0);
     const totalBeforeRound = subtotal + totalCgst + totalSgst + totalIgst;
-    const roundOff = Math.round(totalBeforeRound) - totalBeforeRound;
-    const grandTotal = totalBeforeRound + roundOff;
+    const roundOff = r2(Math.round(totalBeforeRound) - totalBeforeRound);
+    const grandTotal = r2(totalBeforeRound + roundOff);
 
     const payload = {
       voucher_number: invoiceNo || generateInvoice(),

@@ -237,6 +237,7 @@ export default function SaleOrder() {
   
 
   const handleSave = async (mode = "save") => {
+    const r2 = (n) => Math.round(n * 100) / 100;
     const line = (i) => {
       const qty = Number(i.qty) || 0;
       const price = Number(i.price) || 0;
@@ -247,22 +248,22 @@ export default function SaleOrder() {
         item: i.itemId || null,
         quantity: qty,
         unit: "NONE",
-        price,
+        price: r2(price),
         discount_percentage: 0,
         discount_amount: 0,
-        taxable_value: taxable,
+        taxable_value: r2(taxable),
         gst_rate: gst,
-        cgst: gstAmt / 2,
-        sgst: gstAmt / 2,
+        cgst: r2(gstAmt / 2),
+        sgst: r2(gstAmt / 2),
         igst: 0,
         cess: 0,
-        amount: taxable + gstAmt
+        amount: r2(taxable + gstAmt)
       };
     };
     const lines = items.map(line);
     const sub = lines.reduce((s, l) => s + l.taxable_value, 0);
     const totalGst = lines.reduce((s, l) => s + l.cgst + l.sgst, 0);
-    const total = sub + totalGst;
+    const total = r2(sub + totalGst);
     const payload = {
       order_number: soNo,
       date: soDate.toISOString().split("T")[0],

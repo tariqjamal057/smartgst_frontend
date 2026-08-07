@@ -1,4 +1,4 @@
-import { useState ,useEffect} from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useOutletContext } from "react-router-dom";
 import { FaTrash,FaSearch,FaUniversity,FaTruck,FaPen,FaSave,
   FaPaperPlane,
@@ -7,6 +7,7 @@ import { FaTrash,FaSearch,FaUniversity,FaTruck,FaPen,FaSave,
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import "../styles/CreditNote.css";
+import { loadData, saveData } from "../api/connector";
 import * as services from "../api/services";
 
 export default function CreditNote() {
@@ -33,6 +34,7 @@ export default function CreditNote() {
   const updated = items.filter((_, i) => i !== index);
   setItems(updated.length ? updated : [{
     description: "",
+    itemId: null,
     hsn: "",
     qty: "",
     rate: "",
@@ -69,26 +71,164 @@ const [crNo, setCrNo] = useState("");
    const [showCustomerPopup, setShowCustomerPopup] = useState(false);
 
    const [billedTo, setBilledTo] = useState({
-    name: "SALVIA GRAFICS PVT LTD",
-    address: "2652/F Kuti Choraha, Near PVS Mall, Garh Road",
-    city: "Meerut-250002",
-    contact: "Vikram Singh",
-    mobile: "9897012345",
-    pan: "ABMCS5888A",
-    gstin: "09ABMCS5888A12U",
-    pos: "09-Uttar Pradesh"
+    name: "",
+    address: "",
+    city: "",
+    contact: "",
+    mobile: "",
+    pan: "",
+    gstin: "",
+    pos: ""
   });
 
   const [shippedTo, setShippedTo] = useState({
-    name: "SALVIA GRAFICS PVT LTD",
-    address: "2652/F Kuti Choraha, Near PVS Mall, Garh Road",
-    city: "Meerut-250002",
-    contact: "Vikram Singh",
-    mobile: "9897012345",
-    pan: "ABMCS5888A",
-    gstin: "09ABMCS5888A12U",
-    pos: "09-Uttar Pradesh"
+    name: "",
+    address: "",
+    city: "",
+    contact: "",
+    mobile: "",
+    pan: "",
+    gstin: "",
+    pos: ""
   });
+
+  const [customers, setCustomers] = useState([]);
+  const [itemsList, setItemsList] = useState([]);
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [custRes, itemRes] = await Promise.all([
+          services.getParties({ type: "customer" }),
+          services.getItems({})
+        ]);
+        setCustomers(Array.isArray(custRes.data) ? custRes.data : custRes.data?.results ?? []);
+        setItemsList(Array.isArray(itemRes.data) ? itemRes.data : itemRes.data?.results ?? []);
+      } catch (e) {
+        console.error("Failed to load customers/items:", e);
+      }
+    })();
+  }, []);
+
+  const blankAddress = () => ({
+    name: "", address: "", city: "", contact: "", mobile: "", pan: "", gstin: "", pos: ""
+  });
+
+  const selectCustomer = (cust) => {
+    setCustomer(cust);
+    setCustomerSearch(cust.name);
+    setShowCustomerDropdown(false);
+    const billed = {
+      name: cust.name || "",
+      address: cust.billing_address || "",
+      city: "",
+      contact: cust.contact || "",
+      mobile: cust.phone || "",
+      pan: cust.pan || "",
+      gstin: cust.gstin || "",
+      pos: cust.state || ""
+    };
+    setBilledTo(billed);
+    setShippedTo({ ...billed });
+  };
+
+  const filteredCustomers = useMemo(() => {
+    const q = customerSearch.trim().toLowerCase();
+    if (!q) return customers;
+    return customers.filter((c) =>
+      (c.name || "").toLowerCase().includes(q) ||
+      (c.gstin || "").toLowerCase().includes(q)
+    );
+  }, [customers, customerSearch]);
+
+  const isValidGST = (gst) => {
+    const regex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[A-Z0-9]{1}Z[A-Z0-9]{1}$/;
+    return regex.test(gst);
+  };
+
+  const mapRegistrationToGstType = (reg) => {
+    const r = (reg || "").toLowerCase();
+    if (r.includes("composition")) return "REGISTERED_BUSINESS_COMPOSITION";
+    if (r.includes("regular") || r.includes("sez") || r.includes("export") || r.includes("e-commerce") || r.includes("distributor")) return "REGISTERED_BUSINESS_REGULAR";
+    return "UNREGISTERED";
+  };
+
+  const fetchGstForCustomer = async () => {
+    const gstin = (customer.gstin || "").trim().toUpperCase();
+    if (!isValidGST(gstin)) { alert("Invalid GSTIN"); return; }
+    try {
+      const res = await services.lookupGst(gstin);
+      const data = res.data;
+      if (data.success) {
+        setCustomer((prev) => ({
+          ...prev,
+          gstin: data.gstin || gstin,
+          name: data.company_name || prev.name,
+          address1: data.address || prev.address1,
+          address2: data.branch_address || prev.address2,
+          email: data.email || prev.email,
+          contact: data.contact_person || prev.contact,
+          mobile: data.contact_no || prev.mobile,
+          state: data.state || prev.state
+        }));
+        if (data.state) setSelectedState(data.state);
+      } else {
+        alert("GST not found");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("GST lookup failed: " + (error.response?.data?.detail || error.message));
+    }
+  };
+
+  const saveCustomer = async () => {
+    if (!customer.name || !customer.name.trim()) { alert("Party Name required"); return; }
+    const pan = (customer.pan || "").trim().toUpperCase();
+    if (pan && !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(pan)) { alert("Invalid PAN: must be 10 characters (e.g. ABCDE1234F)"); return; }
+    const gstin = (customer.gstin || "").trim().toUpperCase();
+    if (gstin && !isValidGST(gstin)) { alert("Invalid GSTIN"); return; }
+    try {
+      const res = await services.createParty({
+        name: customer.name.trim(),
+        party_type: "CUSTOMER",
+        gstin,
+        phone: customer.contact || "",
+        email: customer.email || "",
+        pan,
+        state: customer.state || "",
+        billing_address: [customer.address1, customer.address2, customer.pin].filter(Boolean).join(", "),
+        gst_type: mapRegistrationToGstType(customer.registration)
+      });
+      const created = res.data;
+      setCustomers((prev) => [...prev, created]);
+      selectCustomer(created);
+      setShowCustomerPopup(false);
+      alert("Customer created successfully!");
+    } catch (err) {
+      const data = err.response?.data;
+      const msg =
+        (typeof data === "string" && data) ||
+        (Array.isArray(data) && data[0]) ||
+        data?.detail ||
+        data?.name?.[0] ||
+        err.message ||
+        "Failed to save customer";
+      alert(msg);
+    }
+  };
+
+  const mapNoteType = (t) => (t === "sales_return" ? "SALES_RETURN" : "CREDIT");
+
+  const resetForm = () => {
+    setItems([{ description: "", itemId: null, hsn: "", qty: "", rate: "", discount: "", tax: "" }]);
+    setCustomer({});
+    setCustomerSearch("");
+    setShowCustomerDropdown(false);
+    setBilledTo(blankAddress());
+    setShippedTo(blankAddress());
+  };
   
 
  
@@ -119,60 +259,117 @@ const [crNo, setCrNo] = useState("");
    }
  }, [currentCount, crConfig, manualEntry]);
 
-  const handleSave = async () => {
-    try {
-      const payload = {
-        voucher_number: crNo || generateVoucher(),
-        date: creditDate || invoiceDate.toISOString().split("T")[0],
-        original_invoice: originalInvoice,
-        original_date: originalDate,
-        credit_type: type,
-        party: customer?.id || null,
-        state_of_supply: billedTo?.pos?.split("-")[1] || "",
-        billing_address: `${billedTo.name}, ${billedTo.address}, ${billedTo.city}`,
-        shipping_address: `${shippedTo.name}, ${shippedTo.address}, ${shippedTo.city}`,
-        total_amount: total,
-        narration: "",
-        items: items.map(i => ({
-          item: null,
-          description: i.desc || "",
-          hsn: i.hsn || "",
-          quantity: Number(i.qty || 0),
-          unit: "NOS",
-          rate: Number(i.rate || 0),
-          discount_percentage: Number(i.discount || 0),
-          gst_rate: Number(i.tax || 0),
-          amount: Number(i.qty || 0) * Number(i.rate || 0) + ((Number(i.qty || 0) * Number(i.rate || 0) - (i.discount || 0)) * (i.tax || 0)) / 100,
-        })),
+   // load existing notes so new voucher numbers don't collide
+   useEffect(() => {
+     (async () => {
+       try {
+         const res = await services.getCreditNotes({});
+         const notes = Array.isArray(res.data) ? res.data : res.data?.results ?? [];
+         const prefix = crConfig.prefix;
+         const nums = notes
+           .map((n) => n.voucher_number || "")
+           .filter((v) => v.startsWith(prefix + "/"))
+           .map((v) => Number(v.replace(prefix + "/", "").replace(/\D/g, "")) || 0);
+         const max = nums.length ? Math.max(...nums) : 0;
+         setCurrentCount(max + 1);
+       } catch (e) {
+         console.error("Failed to load existing credit notes:", e);
+       }
+     })();
+     // eslint-disable-next-line react-hooks/exhaustive-deps
+   }, []);
+
+  const handleSave = async (mode = "save") => {
+    const r2 = (n) => Math.round(n * 100) / 100;
+    const line = (i) => {
+      const qty = Number(i.qty) || 0;
+      const rate = Number(i.rate) || 0;
+      const discount = Number(i.discount) || 0;
+      const tax = Number(i.tax) || 0;
+      const base = qty * rate - discount;
+      const gst = (base * tax) / 100;
+      return {
+        item: i.itemId || null,
+        quantity: qty,
+        unit: "NONE",
+        price: r2(rate),
+        discount_percentage: qty * rate > 0 ? Math.min(999.99, Number(((discount * 100) / (qty * rate)).toFixed(2))) : 0,
+        discount_amount: r2(discount),
+        taxable_value: r2(base),
+        gst_rate: tax,
+        cgst: r2(gst / 2),
+        sgst: r2(gst / 2),
+        igst: 0,
+        cess: 0,
+        amount: r2(base + gst)
       };
-      await services.createCreditNote(payload);
-      alert("Credit Note saved!");
-      setCurrentCount(prev => prev + 1);
-      setVoucherCount(prev => prev + 1);
-    } catch (err) {
-      console.error(err);
-      alert("Failed to save Credit Note");
-    }
+    };
+
+    const lines = items.map(line);
+    const subtotal = lines.reduce((s, l) => s + l.taxable_value, 0);
+    const totalCgst = lines.reduce((s, l) => s + l.cgst, 0);
+    const totalSgst = lines.reduce((s, l) => s + l.sgst, 0);
+    const totalBeforeRound = subtotal + totalCgst + totalSgst;
+    const roundOff = r2(Math.round(totalBeforeRound) - totalBeforeRound);
+    const grandTotal = r2(totalBeforeRound + roundOff);
+
+    const payload = {
+      voucher_number: crNo || generateVoucher(),
+      date: creditDate || invoiceDate.toISOString().split("T")[0],
+      note_type: mapNoteType(type),
+      party: customer?.id || null,
+      state_of_supply: billedTo?.pos?.split("-")[1] || customer?.state || "",
+      supply_type: "REGULAR",
+      billing_address: [billedTo?.name, billedTo?.address, billedTo?.city].filter(Boolean).join(", "),
+      shipping_address: [shippedTo?.name, shippedTo?.address, shippedTo?.city].filter(Boolean).join(", "),
+      total_amount: grandTotal,
+      round_off: roundOff,
+      narration: "",
+      eway_bill_no: "",
+      transporter_name: "",
+      vehicle_no: dispatch?.vehicle || "",
+      lr_rr_no: dispatch?.lr || "",
+      mode_of_transport: "",
+      items: lines
+    };
+    try {
+      await saveData(services.createCreditNote, payload,
+        async (data) => {
+          alert("Credit Note saved successfully!");
+          setCurrentCount((prev) => prev + 1);
+          setVoucherCount((prev) => prev + 1);
+          if (mode === "send") {
+            try {
+              await services.postCreditNote(data.id);
+              alert("Credit Note posted & sent successfully!");
+            } catch (e) {
+              alert("Credit Note saved but posting failed.");
+            }
+          }
+          resetForm();
+        },
+        (err) => {
+          const data = err?.response?.data || err;
+          const msg =
+            (typeof data === "string" && data) ||
+            (Array.isArray(data) && data[0]) ||
+            data?.detail ||
+            data?.non_field_errors?.[0] ||
+            JSON.stringify(data);
+          alert(msg || "Failed to save Credit Note");
+        }
+      );
+    } catch (e) { console.error(e); }
   };
 
   // ================= ITEMS =================
   const [items, setItems] = useState([
-    { desc: "", hsn: "", qty: "", rate: "", discount: "", tax: "" }
+    { description: "", itemId: null, hsn: "", qty: "", rate: "", discount: "", tax: "" }
   ]);
 
   const addRow = () => {
-    setItems([...items, { desc: "", hsn: "", qty: "", rate: "", discount: "", tax: "" }]);
+    setItems([...items, { description: "", itemId: null, hsn: "", qty: "", rate: "", discount: "", tax: "" }]);
   };
-
-  // ================= CALC =================
-  const subTotal = items.reduce((s, i) => s + (i.qty * i.rate || 0), 0);
-
-  const taxTotal = items.reduce((s, i) => {
-    const base = (i.qty * i.rate || 0) - (i.discount || 0);
-    return s + (base * (i.tax || 0)) / 100;
-  }, 0);
-
-  const total = subTotal + taxTotal;
 
    return (
     <div className="credit-app">
@@ -455,8 +652,34 @@ const [crNo, setCrNo] = useState("");
               <div className="credit-search-box">
                 <div className="credit-search-input-wrapper">
                   <FaSearch className="sale-search-icon" />
-                  <input type="text" placeholder="Search customer..." />
+                  <input
+                    type="text"
+                    placeholder="Search customer..."
+                    value={customerSearch}
+                    onChange={(e) => {
+                      setCustomerSearch(e.target.value);
+                      setShowCustomerDropdown(true);
+                    }}
+                    onFocus={() => setShowCustomerDropdown(true)}
+                  />
                 </div>
+                {showCustomerDropdown && (
+                  <div className="customer-search-dropdown">
+                    {filteredCustomers.length === 0 && (
+                      <div className="customer-search-empty">No customers found</div>
+                    )}
+                    {filteredCustomers.map((cust) => (
+                      <div
+                        key={cust.id}
+                        className="customer-search-option"
+                        onClick={() => selectCustomer(cust)}
+                      >
+                        <div className="customer-search-name">{cust.name}</div>
+                        <div className="customer-search-gstin">{cust.gstin || ""}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <button
                     className="cr-new-customer-btn"
                     onClick={() => setShowCustomerPopup(true)}
@@ -499,7 +722,7 @@ const [crNo, setCrNo] = useState("");
                               onChange={(e)=>setCustomer({...customer,gstin:e.target.value})}
                             />
 
-                            <button className="cust-get-btn">Get Data</button>
+                            <button className="cust-get-btn" onClick={fetchGstForCustomer}>Get Data</button>
                           </div>
 
                           <input className="cust-input" placeholder="Party Name"
@@ -604,7 +827,7 @@ const [crNo, setCrNo] = useState("");
 
                       {/* ACTIONS */}
                       <div className="cust-actions">
-                        <button className="cust-save-btn">Save Customer</button>
+                        <button className="cust-save-btn" onClick={saveCustomer}>Save Customer</button>
                       </div>
 
                     </div>
@@ -814,6 +1037,11 @@ const [crNo, setCrNo] = useState("");
               </div>
               <h2>Items</h2>
             </div>
+            <datalist id="credit-items-datalist">
+              {itemsList.map((it) => (
+                <option key={it.id} value={it.name} />
+              ))}
+            </datalist>
             <table className="items-table">
               <thead>
                 <tr>
@@ -849,14 +1077,26 @@ const [crNo, setCrNo] = useState("");
                       <td>{i + 1}</td>
                       <td>
                         <input
+                          list="credit-items-datalist"
+                          value={item.description}
                           onChange={(e) => {
                             const d = [...items];
-                            d[i].description = e.target.value;
+                            const val = e.target.value;
+                            d[i].description = val;
+                            const match = itemsList.find((it) => it.name === val);
+                            if (match) {
+                              d[i].itemId = match.id;
+                              d[i].hsn = match.hsn_code || "";
+                            } else {
+                              d[i].itemId = null;
+                            }
                             setItems(d);
                           }}
                         />
                       </td>
-                      <td><input /></td>
+                      <td><input value={item.hsn} onChange={(e) => {
+                        const d = [...items]; d[i].hsn = e.target.value; setItems(d);
+                      }} /></td>
                       <td>
                         <input
                           type="number"
@@ -983,12 +1223,12 @@ const [crNo, setCrNo] = useState("");
           </div>
           {/* ================= ACTIONS ================= */}
           <div className="sale-footer-actions">
-            <button className="sale-save-btn" onClick={handleSave}>
+            <button className="sale-save-btn" onClick={() => handleSave("save")}>
               <FaSave />
               Save
             </button>
 
-            <button className="sale-save-send-btn">
+            <button className="sale-save-send-btn" onClick={() => handleSave("send")}>
               <FaPaperPlane />
               Save & Send
             </button>
@@ -998,7 +1238,7 @@ const [crNo, setCrNo] = useState("");
               Print
             </button>
 
-            <button className="sale-cancel-btn">
+            <button className="sale-cancel-btn" onClick={resetForm}>
               <FaTimes />
               Cancel
             </button>
