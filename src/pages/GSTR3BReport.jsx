@@ -14,6 +14,8 @@ const GSTR3BReport = () => {
   const [fileType, setFileType] = useState("software_excel");
   const { collapsed } = useOutletContext();
   const [reportData, setReportData] = useState([]);
+  const [statewise, setStatewise] = useState([]);
+  const [company, setCompany] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -39,6 +41,8 @@ const GSTR3BReport = () => {
       const res = await services.getGSTR3B({ from_date, to_date });
       const payload = res.data || res;
       setReportData(Array.isArray(payload) ? payload : payload.results || []);
+      setStatewise(Array.isArray(payload.statewise) ? payload.statewise : []);
+      setCompany(payload.company || {});
     } catch (err) {
       setError("Failed to fetch GSTR-3B data.");
       setReportData([]);
@@ -54,6 +58,7 @@ const GSTR3BReport = () => {
   const setCellValue = (workbook, sheetName, cell, value) => {
     const sheet = workbook.Sheets[sheetName];
     if (!sheet) return;
+    if (value === undefined || value === null || value === "") return;
     if (!sheet[cell]) {
       sheet[cell] = { t: typeof value === "number" ? "n" : "s", v: value };
     } else {
@@ -61,24 +66,64 @@ const GSTR3BReport = () => {
     }
   };
 
+  const fill31 = (workbook) => {
+    setCellValue(workbook, "GSTR-3B - 3.1", "D5", company.gstin || "09ABCDE1234F1Z5");
+    setCellValue(workbook, "GSTR-3B - 3.1", "D6", company.company_name || "TAXMATE TECHNOLOGY PRIVATE LIMITED");
+    setCellValue(workbook, "GSTR-3B - 3.1", "D7", company.trade_name || "TAXMATE TECHNOLOGY PRIVATE LIMITED");
+    setCellValue(workbook, "GSTR-3B - 3.1", "J2", company.financial_year || "2025-26");
+    setCellValue(workbook, "GSTR-3B - 3.1", "J3", "Apr-Mar");
+    reportData.forEach((item, index) => {
+      const row = 12 + index;
+      setCellValue(workbook, "GSTR-3B - 3.1", `F${row}`, item.taxableValue);
+      setCellValue(workbook, "GSTR-3B - 3.1", `G${row}`, item.igst);
+      setCellValue(workbook, "GSTR-3B - 3.1", `H${row}`, item.cgst);
+      setCellValue(workbook, "GSTR-3B - 3.1", `I${row}`, item.sgst);
+      setCellValue(workbook, "GSTR-3B - 3.1", `J${row}`, item.cess);
+    });
+  };
+
+  const fill32 = (workbook) => {
+    const sheet = workbook.Sheets["GSTR-3B - 3.2"];
+    if (!sheet) return;
+    const stateRows = statewise.map((item) => [item.nature, item.state, item.taxableValue, item.igst]);
+    if (stateRows.length === 0) return;
+    for (let r = 3; r <= 60; r++) {
+      for (let c = 0; c < 4; c++) {
+        const addr = XLSX.utils.encode_cell({ r: r - 1, c });
+        delete sheet[addr];
+      }
+    }
+    XLSX.utils.sheet_add_aoa(sheet, stateRows, { origin: "A3" });
+  };
+
   const downloadSoftwareExcel = async () => {
     try {
-      const response = await fetch("/templates/GSTR-3B Month-Yearly Report (2025-26) TAXMATE TECHNOLOGY PRIVATE LIMITED.xlsx");
-      if (!response.ok) throw new Error("Software template not found.");
-      const arrayBuffer = await response.arrayBuffer();
-      const workbook = XLSX.read(arrayBuffer, { type: "array", cellStyles: true, cellFormula: true, cellDates: true });
+      let workbook;
+      try {
+        const response = await fetch("/templates/GSTR-3B Month-Yearly Report (2025-26) TAXMATE TECHNOLOGY PRIVATE LIMITED.xlsx");
+        if (!response.ok) throw new Error("Software template not found.");
+        const arrayBuffer = await response.arrayBuffer();
+        workbook = XLSX.read(arrayBuffer, { type: "array", cellStyles: true, cellFormula: true, cellDates: true });
+      } catch (e) {
+        workbook = XLSX.utils.book_new();
+        const ws1 = XLSX.utils.aoa_to_sheet([
+          ["GSTR-3B - Monthly Return", "", company.gstin || ""],
+          ["Company", company.company_name || ""],
+          ["Trade Name", company.trade_name || ""],
+        ]);
+        XLSX.utils.book_append_sheet(workbook, ws1, "GSTR-3B - 3.1");
+        const ws2 = XLSX.utils.aoa_to_sheet([]);
+        XLSX.utils.sheet_add_aoa(
+          ws2,
+          [["Nature Of Supply", "State/UT", "Taxable Value", "IGST", "CGST", "SGST", "Cess"]],
+          { origin: "A2" }
+        );
+        ws2["!cols"] = [{ wch: 60 }, { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 10 }];
+        XLSX.utils.book_append_sheet(workbook, ws2, "GSTR-3B - 3.2");
+      }
 
-      setCellValue(workbook, "GSTR-3B - 3.1", "D5", "09ABCDE1234F1Z5");
-      setCellValue(workbook, "GSTR-3B - 3.1", "D6", "TAXMATE TECHNOLOGY PRIVATE LIMITED");
-      setCellValue(workbook, "GSTR-3B - 3.1", "D7", "TAXMATE TECHNOLOGY PRIVATE LIMITED");
-
-      reportData.forEach((item, index) => {
-        const row = index + 3;
-        setCellValue(workbook, "GSTR-3B - 3.2", `A${row}`, item.nature);
-        setCellValue(workbook, "GSTR-3B - 3.2", `B${row}`, item.state);
-        setCellValue(workbook, "GSTR-3B - 3.2", `C${row}`, item.taxableValue);
-        setCellValue(workbook, "GSTR-3B - 3.2", `D${row}`, item.igst);
-      });
+      fill31(workbook);
+      fill32(workbook);
 
       const excelBuffer = XLSX.write(workbook, { type: "array", bookType: "xlsx", cellStyles: true });
       saveAs(new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), "Software_GSTR3B_Report.xlsx");
@@ -93,8 +138,8 @@ const GSTR3BReport = () => {
     doc.setFontSize(18);
     doc.text("GSTR-3B Report", 14, 20);
     doc.setFontSize(11);
-    doc.text("Company : TAXMATE TECHNOLOGY PRIVATE LIMITED", 14, 32);
-    doc.text("GSTIN : 09ABCDE1234F1Z5", 14, 40);
+    doc.text(`Company : ${company.company_name || "TAXMATE TECHNOLOGY PRIVATE LIMITED"}`, 14, 32);
+    doc.text(`GSTIN : ${company.gstin || "09ABCDE1234F1Z5"}`, 14, 40);
     doc.text(`Mode : ${mode === "month" ? "Monthly" : "Quarterly"}`, 14, 48);
 
     autoTable(doc, {

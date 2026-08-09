@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { useOutletContext } from "react-router-dom";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 import "../styles/TDSReport.css";
 import * as services from "../api/services";
 
@@ -47,6 +49,17 @@ const TDSReport = () => {
     fetchData();
   }, [month, quarter, mode]);
 
+  const downloadExcel = () => {
+    const workbook = XLSX.utils.book_new();
+    const headers = [["TDS Section", "Account", "PAN No.", "Date", "Rate %", "Amount", "Tax"]];
+    const rows = data.map((row) => [row.section, row.account, row.pan, row.date, row.rate, row.amount, row.tax]);
+    const worksheet = XLSX.utils.aoa_to_sheet([...headers, ...rows]);
+    worksheet["!cols"] = [{ wch: 14 }, { wch: 30 }, { wch: 18 }, { wch: 14 }, { wch: 10 }, { wch: 16 }, { wch: 16 }];
+    XLSX.utils.book_append_sheet(workbook, worksheet, "TDS Report");
+    const excelBuffer = XLSX.write(workbook, { type: "array", bookType: "xlsx" });
+    saveAs(new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), "TDS_Report.xlsx");
+  };
+
   return (
     <div className={`main ${collapsed ? "collapsed" : ""}`}>
       <div className="tds-header-card">
@@ -56,6 +69,11 @@ const TDSReport = () => {
             <h2>TDS Report</h2>
             <p>Track and manage TDS/TCS deductions</p>
           </div>
+        </div>
+        <div className="tds-header-right">
+          <button className="tds-download-btn" onClick={downloadExcel} disabled={loading || data.length === 0}>
+            {loading ? "Loading..." : "⬇ Download Excel"}
+          </button>
         </div>
       </div>
 

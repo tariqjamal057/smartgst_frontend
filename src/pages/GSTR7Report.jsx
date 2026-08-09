@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { useOutletContext } from "react-router-dom";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 import "../styles/GSTR1Report.css";
 import * as services from "../api/services";
 
@@ -47,7 +49,22 @@ const GSTR7Report = () => {
     fetchData();
   }, [month, quarter, mode]);
 
+  const downloadExcel = () => {
+    const workbook = XLSX.utils.book_new();
+    const headers = [["Date", "TDS Section", "Name of Deductee", "PAN", "Voucher No", "Amount", "Rate %", "TDS Amount"]];
+    const rows = reportData.map((item) => [item.date, item.section, item.account, item.pan, item.voucher_number, item.amount, item.rate, item.tax]);
+    const worksheet = XLSX.utils.aoa_to_sheet([...headers, ...rows]);
+    worksheet["!cols"] = [{ wch: 12 }, { wch: 12 }, { wch: 30 }, { wch: 18 }, { wch: 18 }, { wch: 14 }, { wch: 10 }, { wch: 14 }];
+    XLSX.utils.book_append_sheet(workbook, worksheet, "GSTR-7");
+    const excelBuffer = XLSX.write(workbook, { type: "array", bookType: "xlsx" });
+    saveAs(new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), "Software_GSTR7_Report.xlsx");
+  };
+
   const handleDownload = () => {
+    if (fileType === "software_excel" || fileType === "govt_excel") {
+      downloadExcel();
+      return;
+    }
     const jsonBlob = new Blob([JSON.stringify(reportData, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(jsonBlob);
     const a = document.createElement("a");

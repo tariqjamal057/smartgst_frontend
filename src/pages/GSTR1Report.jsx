@@ -80,26 +80,157 @@ const GSTR1Report = () => {
         const arrayBuffer = await response.arrayBuffer();
         const workbook = XLSX.read(arrayBuffer, { type: "array", cellStyles: true, cellFormula: true, cellDates: true });
 
+        const setCell = (sheetName, cell, value) => {
+          const sheet = workbook.Sheets[sheetName];
+          if (!sheet) return;
+          if (value === undefined || value === null || value === "") return;
+          sheet[cell] = { t: typeof value === "number" ? "n" : "s", v: value };
+        };
+
+        const clearDataRows = () => {
+          Object.keys(workbook.Sheets).forEach((name) => {
+            if (name === "Help Instruction" || name === "master") return;
+            const sheet = workbook.Sheets[name];
+            Object.keys(sheet).forEach((key) => {
+              if (key[0] === "!") return;
+              const row = XLSX.utils.decode_cell(key).r + 1;
+              if (row >= 5) delete sheet[key];
+            });
+          });
+        };
+
         const insertRows = (sheetName, rows, startCell) => {
           const worksheet = workbook.Sheets[sheetName];
           if (!worksheet) return;
+          if (!rows.length) return;
           XLSX.utils.sheet_add_aoa(worksheet, rows, { origin: startCell });
         };
 
-        const b2bRows = (voucherData.b2b || []).map((item) => [item.gstin, item.receiver, item.invoiceNo, item.invoiceDate, item.invoiceValue, item.placeOfSupply, item.reverseCharge, item.invoiceType, item.ecommerceGSTIN, item.gstRate, item.taxableValue, item.cess]);
+        const sum = (arr, key) => (arr || []).reduce((s, i) => s + (Number(i[key]) || 0), 0);
+
+        clearDataRows();
+
+        // b2b,sez,de (4A,4B,6B,6C)
+        const b2b = voucherData.b2b || [];
+        const b2bRows = b2b.map((item) => [item.gstin, item.receiver, item.invoiceNo, item.invoiceDate, item.invoiceValue, item.placeOfSupply, item.reverseCharge || "N", 100, item.invoiceType, item.ecommerceGSTIN, item.gstRate, item.taxableValue, item.cess]);
         insertRows("b2b,sez,de", b2bRows, "A5");
+        setCell("b2b,sez,de", "A3", new Set(b2b.map((i) => i.gstin)).size);
+        setCell("b2b,sez,de", "C3", b2b.length);
+        setCell("b2b,sez,de", "E3", sum(b2b, "invoiceValue"));
+        setCell("b2b,sez,de", "L3", sum(b2b, "taxableValue"));
+        setCell("b2b,sez,de", "M3", sum(b2b, "cess"));
 
-        const b2clRows = (voucherData.b2cLarge || []).map((item) => [item.invoiceNo, item.invoiceDate, item.invoiceValue, item.placeOfSupply, item.applicableTaxRate, item.gstRate, item.taxableValue, item.cess, item.ecommerceGSTIN]);
+        // b2cl (5)
+        const b2cl = voucherData.b2cLarge || [];
+        const b2clRows = b2cl.map((item) => [item.invoiceNo, item.invoiceDate, item.invoiceValue, item.placeOfSupply, item.applicableTaxRate ?? 100, item.gstRate, item.taxableValue, item.cess, item.ecommerceGSTIN]);
         insertRows("b2cl", b2clRows, "A5");
+        setCell("b2cl", "A3", b2cl.length);
+        setCell("b2cl", "C3", sum(b2cl, "invoiceValue"));
+        setCell("b2cl", "G3", sum(b2cl, "taxableValue"));
+        setCell("b2cl", "H3", sum(b2cl, "cess"));
 
-        const exportRows = (voucherData.export || []).map((item) => [item.exportType, item.invoiceNo, item.invoiceDate, item.invoiceValue, item.portCode, item.shippingBillNo, item.shippingBillDate, item.gstRate, item.taxableValue, item.cess]);
-        insertRows("exp", exportRows, "A5");
+        // b2cs (7) - aggregated by place of supply + rate
+        const b2cLarge = voucherData.b2cLarge || [];
+        const b2csMap = {};
+        b2cLarge.forEach((item) => {
+          const key = `${item.placeOfSupply || ""}|${item.applicableTaxRate ?? 100}|${item.gstRate}`;
+          if (!b2csMap[key]) b2csMap[key] = { pos: item.placeOfSupply, appRate: item.applicableTaxRate ?? 100, rate: item.gstRate, taxable: 0, cess: 0 };
+          b2csMap[key].taxable += Number(item.taxableValue) || 0;
+          b2csMap[key].cess += Number(item.cess) || 0;
+        });
+        const b2csRows = Object.values(b2csMap).map((g) => ["OE", g.pos, g.appRate, g.rate, g.taxable, g.cess]);
+        insertRows("b2cs", b2csRows, "A5");
+        setCell("b2cs", "E3", sum(Object.values(b2csMap), "taxable"));
+        setCell("b2cs", "F3", sum(Object.values(b2csMap), "cess"));
 
-        const hsnRows = (voucherData.hsnSummary || []).map((item) => [item.hsn, item.description, item.uqc, item.quantity, item.totalValue, item.taxableValue, item.igst, item.cgst, item.sgst, item.cess]);
+        // exp (6)
+        const exp = voucherData.export || [];
+        const expRows = exp.map((item) => [item.exportType, item.invoiceNo, item.invoiceDate, item.invoiceValue, item.portCode, item.shippingBillNo, item.shippingBillDate, item.gstRate, item.taxableValue, item.cess]);
+        insertRows("exp", expRows, "A5");
+        setCell("exp", "B3", exp.length);
+        setCell("exp", "D3", sum(exp, "invoiceValue"));
+        setCell("exp", "F3", exp.filter((i) => i.shippingBillNo).length);
+        setCell("exp", "J3", sum(exp, "taxableValue"));
+
+        // exemp (8) - nil rated / exempted
+        const nil = voucherData.nilRated || [];
+        const nilRows = nil.map((item) => [item.description, item.nilRated, item.exempted, item.nonGst]);
+        insertRows("exemp", nilRows, "A5");
+        setCell("exemp", "B3", sum(nil, "nilRated"));
+        setCell("exemp", "C3", sum(nil, "exempted"));
+        setCell("exemp", "D3", sum(nil, "nonGst"));
+
+        // cdnr (9B) - registered
+        const crdr = voucherData.crdr || [];
+        const cdnrRows = crdr.map((item) => [item.gstin, item.receiver, item.noteNo, item.noteDate, item.noteType, item.placeOfSupply, "N", "", item.noteValue, 100, item.gstRate, item.taxableValue, item.cess]);
+        insertRows("cdnr", cdnrRows, "A5");
+        setCell("cdnr", "A3", new Set(crdr.map((i) => i.gstin)).size);
+        setCell("cdnr", "C3", cdnrRows.length);
+        setCell("cdnr", "I3", sum(crdr, "noteValue"));
+        setCell("cdnr", "L3", sum(crdr, "taxableValue"));
+        setCell("cdnr", "M3", sum(crdr, "cess"));
+
+        // cdnur (9B) - unregistered
+        const crdrUnreg = voucherData.crdrUnregistered || [];
+        const cdnurRows = crdrUnreg.map((item) => ["B2C", item.noteNo, item.noteDate, item.noteType, item.placeOfSupply, item.noteValue, 100, item.gstRate, item.taxableValue, item.cess]);
+        insertRows("cdnur", cdnurRows, "A5");
+        setCell("cdnur", "B3", cdnurRows.length);
+        setCell("cdnur", "F3", sum(crdrUnreg, "noteValue"));
+        setCell("cdnur", "I3", sum(crdrUnreg, "taxableValue"));
+        setCell("cdnur", "J3", sum(crdrUnreg, "cess"));
+
+        // at (11B) - advance received
+        const advRec = voucherData.advanceReceived || [];
+        const atRows = advRec.map((item) => [item.placeOfSupply, item.applicableTaxRate ?? 100, item.gstRate, item.taxableValue, item.cess]);
+        insertRows("at", atRows, "A5");
+        setCell("at", "D3", sum(advRec, "taxableValue"));
+        setCell("at", "E3", sum(advRec, "cess"));
+
+        // atadj (11B) - advance adjusted
+        const advAdj = voucherData.advanceAdjusted || [];
+        const atadjRows = advAdj.map((item) => [item.placeOfSupply, item.applicableTaxRate ?? 100, item.gstRate, item.taxableValue, item.cess]);
+        insertRows("atadj", atadjRows, "A5");
+        setCell("atadj", "D3", sum(advAdj, "taxableValue"));
+        setCell("atadj", "E3", sum(advAdj, "cess"));
+
+        // hsn(b2b) + hsn(b2c) (12)
+        const hsn = voucherData.hsnSummary || [];
+        const hsnRows = hsn.map((item) => [item.hsn, item.description, item.uqc, item.quantity, item.totalValue, item.rate, item.taxableValue, item.igst, item.cgst, item.sgst, item.cess]);
         insertRows("hsn(b2b)", hsnRows, "A5");
+        insertRows("hsn(b2c)", hsnRows, "A5");
+        setCell("hsn(b2b)", "A3", hsn.length);
+        setCell("hsn(b2b)", "E3", sum(hsn, "totalValue"));
+        setCell("hsn(b2b)", "G3", sum(hsn, "taxableValue"));
+        setCell("hsn(b2b)", "H3", sum(hsn, "igst"));
+        setCell("hsn(b2b)", "I3", sum(hsn, "cgst"));
+        setCell("hsn(b2b)", "J3", sum(hsn, "sgst"));
+        setCell("hsn(b2b)", "K3", sum(hsn, "cess"));
 
-        const docsRows = (voucherData.documentIssued || []).map((item) => [item.nature, item.from, item.to, item.total, item.cancelled]);
+        // docs (13)
+        const docs = voucherData.documentIssued || [];
+        const docsRows = docs.map((item) => [item.nature, item.from, item.to, item.total, item.cancelled]);
         insertRows("docs", docsRows, "A5");
+        setCell("docs", "D3", sum(docs, "total"));
+        setCell("docs", "E3", sum(docs, "cancelled"));
+
+        // eco (14) - supplies through e-commerce
+        const eco = voucherData.ecomSupplies || [];
+        const ecoRows = eco.map((item) => ["Liable to collect tax u/s 52(TCS)", item.gstin, "", item.supplyValue, item.igst, item.cgst, item.sgst, item.cess]);
+        insertRows("eco", ecoRows, "A5");
+        setCell("eco", "B3", new Set(eco.map((i) => i.gstin)).size);
+        setCell("eco", "D3", sum(eco, "supplyValue"));
+        setCell("eco", "E3", sum(eco, "igst"));
+        setCell("eco", "F3", sum(eco, "cgst"));
+        setCell("eco", "G3", sum(eco, "sgst"));
+        setCell("eco", "H3", sum(eco, "cess"));
+
+        // ecob2c - supplies u/s 9(5)
+        const eco9_5 = voucherData.ecomSupplies9_5 || [];
+        const ecob2cRows = eco9_5.map((item) => [item.gstin, "", item.placeOfSupply, item.taxableValue, item.rate, item.cess]);
+        insertRows("ecob2c", ecob2cRows, "A5");
+        setCell("ecob2c", "A3", eco9_5.length);
+        setCell("ecob2c", "D3", sum(eco9_5, "taxableValue"));
+        setCell("ecob2c", "F3", sum(eco9_5, "cess"));
 
         const excelBuffer = XLSX.write(workbook, { type: "array", bookType: "xlsx", cellStyles: true });
         saveAs(new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), "Govt_GSTR1_Report.xlsx");
