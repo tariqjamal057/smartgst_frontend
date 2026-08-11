@@ -167,6 +167,7 @@ export default function LedgerCreate() {
     contactPerson: "",
     mobile: "",
     email: "",
+    state: "Uttar Pradesh",
 
     // loan & advance
 
@@ -297,6 +298,7 @@ export default function LedgerCreate() {
           billing_address: ledger.address || "",
           phone: ledger.mobile || "",
           email: ledger.email || "",
+          // state: ledger.state || "",
         });
         alert("Party created successfully");
         navigate(group === "Sundry Debtors" ? "/customers" : "/vendors");
@@ -393,17 +395,32 @@ export default function LedgerCreate() {
 
                 <div className="contact">
                   <label>Contact Person</label>
-                  <input value={ledger.contactPerson} readOnly />
+                  <input
+                    value={ledger.contactPerson}
+                    onChange={(e) =>
+                      setLedger(prev => ({ ...prev, contactPerson: e.target.value }))
+                    }
+                  />
                 </div>
 
                 <div className="mobile">
                   <label>Mobile No.</label>
-                  <input value={ledger.mobile} readOnly />
+                  <input
+                    value={ledger.mobile}
+                    onChange={(e) =>
+                      setLedger(prev => ({ ...prev, mobile: e.target.value }))
+                    }
+                  />
                 </div>
 
                 <div className="email">
                   <label>Email ID</label>
-                  <input value={ledger.email} readOnly />
+                  <input
+                    value={ledger.email}
+                    onChange={(e) =>
+                      setLedger(prev => ({ ...prev, email: e.target.value }))
+                    }
+                  />
                 </div>
 
               </div>
@@ -863,7 +880,13 @@ export default function LedgerCreate() {
 
                 <div className="ledger-line">
                   <span>State</span><span>:</span>
-                  <b>Uttar Pradesh</b>
+                  <input
+                    className="tally-input"
+                    value={ledger.state}
+                    onChange={(e) =>
+                      setLedger(prev => ({ ...prev, state: e.target.value }))
+                    }
+                  />
                 </div>
 
                 <div className="ledger-line">
