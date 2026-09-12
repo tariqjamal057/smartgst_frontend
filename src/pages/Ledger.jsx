@@ -298,7 +298,7 @@ export default function LedgerCreate() {
           billing_address: ledger.address || "",
           phone: ledger.mobile || "",
           email: ledger.email || "",
-          // state: ledger.state || "",
+          state: ledger.state || "",
         });
         alert("Party created successfully");
         navigate(group === "Sundry Debtors" ? "/customers" : "/vendors");

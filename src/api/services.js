@@ -244,7 +244,18 @@ export const getLedgerEntries = (params) =>
   api.get("/accounting/ledger/", { params: buildParams(params) });
 
 // ─── GST Lookup ───
-export const lookupGst = (gstin) => api.get(`/accounting/gst/${gstin}/`);
+// creds (optional): { gstin, username, ip, cust_id } — the caller's own GSP
+// values; when omitted the backend falls back to the tenant company GSTIN
+// (authenticated) or the env defaults (company-creation page).
+export const lookupGst = (gstin, creds = {}) =>
+  api.get(`/accounting/gst/${gstin}/`, {
+    params: {
+      ...(creds.gstin ? { gstin: creds.gstin } : {}),
+      ...(creds.username ? { username: creds.username } : {}),
+      ...(creds.ip ? { ip: creds.ip } : {}),
+      ...(creds.cust_id ? { cust_id: creds.cust_id } : {}),
+    },
+  });
 
 // ─── Reports ───
 export const getTrialBalance = (params) =>
