@@ -263,7 +263,8 @@ export default function LedgerCreate() {
           address: data.address || "",
           contactPerson: data.contact_person || "",
           mobile: data.contact_no || "",
-          email: data.email || ""
+          email: data.email || "",
+          state: data.state || ""
         }));
       } else {
         alert("GST not found");
