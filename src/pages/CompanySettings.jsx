@@ -1,3 +1,4 @@
+import { getFinancialYearLabel } from "../utils/financialYear";
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 
@@ -83,7 +84,7 @@ const CompanySettings = ({onSave}) => {
   const [ewbPassword, setEwbPassword] = useState("");
   const [einvoiceLoginId, setEinvoiceLoginId] = useState("");
   const [einvoicePassword, setEinvoicePassword] = useState("");
-  const [financialYear, setFinancialYear] = useState("2024-25");
+  const [financialYear, setFinancialYear] = useState(getFinancialYearLabel());
   const [bookBeginning, setBookBeginning] = useState("");
   const [returnType, setReturnType] = useState("Monthly");
   const [registrationType, setRegistrationType] = useState("Regular");
@@ -138,7 +139,7 @@ const CompanySettings = ({onSave}) => {
     setEwbPassword("");
     setEinvoiceLoginId("");
     setEinvoicePassword("");
-    setFinancialYear("2024-25");
+    setFinancialYear(getFinancialYearLabel());
     setBookBeginning("");
     setReturnType("Monthly");
     setRegistrationType("Regular");
@@ -263,7 +264,7 @@ const applyCompanyData = (data) => {
   setWebsite(data.website || "");
   setContactPerson(data.contact_person || "");
   setContactNo(data.phone || "");
-  setFinancialYear(data.financial_year || "2024-25");
+  setFinancialYear(data.financial_year || getFinancialYearLabel());
   setBookBeginning(data.book_beginning || "");
   setReturnType(data.return_type || "Monthly");
   setRegistrationType(data.registration_type || "Regular");
@@ -847,7 +848,7 @@ const formatSessionTime = (iso) => {
                 <div className="company-create-form-group">
                   <label>Financial Year</label>
                   <input 
-                        placeholder="2024-25"
+                        placeholder={getFinancialYearLabel()}
                         value={financialYear}
                         onChange={(e) => setFinancialYear(e.target.value)}
                       />

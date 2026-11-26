@@ -1,3 +1,4 @@
+import { getFinancialYearLabel } from "../utils/financialYear";
 import { useState, useEffect } from "react";
 import { useOutletContext } from "react-router-dom";
 import { FaSave, FaBuilding, FaCheck } from "react-icons/fa";
@@ -347,7 +348,7 @@ export default function Settings() {
                 type="text"
                 value={settings.financial_year}
                 onChange={(e) => handleChange("financial_year", e.target.value)}
-                placeholder="2025-26"
+                placeholder={getFinancialYearLabel()}
                 style={{
                   width: "100%",
                   padding: "8px 12px",

@@ -1,3 +1,4 @@
+import { getFinancialYearLabel } from "../utils/financialYear";
 import { useState, useEffect, useMemo } from "react";
 import { useOutletContext } from "react-router-dom";
 import DatePicker from "react-datepicker";
@@ -13,7 +14,7 @@ export default function DeliveryChallan() {
   const { collapsed } = useOutletContext();
 
   /* ================= PART 1 ================= */
-  const DC_PREFIX = "DC/2025-26";
+  const DC_PREFIX = "DC/" + getFinancialYearLabel();
   const [challanNo, setChallanNo] = useState("");
   const [currentCount, setCurrentCount] = useState(1);
   const [invoiceDate, setInvoiceDate] = useState(new Date());

@@ -1,3 +1,4 @@
+import { getFinancialYearLabel } from "../utils/financialYear";
 import { useState, useEffect, useMemo } from "react";
 import { useOutletContext, useNavigate } from "react-router-dom";
 import { FaTrash ,FaSearch,FaUniversity,FaTruck,FaPen,FaSave,
@@ -59,7 +60,7 @@ const [portOfExport, setPortOfExport] = useState("");
 const [saving, setSaving] = useState(false);
 
 /* ================= VOUCHER NUMBER ================= */
-const VOUCHER_PREFIX = "PUR/2025-26";
+const VOUCHER_PREFIX = "PUR/" + getFinancialYearLabel();
 const [currentCount, setCurrentCount] = useState(1);
 const [voucherNo, setVoucherNo] = useState(`${VOUCHER_PREFIX}/0001`);
 useEffect(() => {

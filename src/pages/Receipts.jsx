@@ -1,3 +1,4 @@
+import { getFinancialYearLabel } from "../utils/financialYear";
 import { useState, useEffect, useMemo } from "react";
 import { useOutletContext, useNavigate } from "react-router-dom";
 import { FaSearch } from "react-icons/fa";
@@ -6,7 +7,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import "../styles/ReceiptInvoice.css";
 import * as services from "../api/services";
 
-const VOUCHER_PREFIX = "REC/2025-26";
+const VOUCHER_PREFIX = "REC/" + getFinancialYearLabel();
 
 const states = [
   "Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh",

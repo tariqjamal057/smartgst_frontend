@@ -1,3 +1,4 @@
+import { getFinancialYearLabel } from "../utils/financialYear";
   import { useState, useRef, useEffect, useMemo } from "react";
   import { useOutletContext,useNavigate } from "react-router-dom";
   import { FaTrash, FaBuilding , FaLocationArrow,FaUniversity,FaTruck, FaBoxOpen,FaPen, FaSearch,FaSave,
@@ -176,7 +177,7 @@ const [selectedState, setSelectedState] = useState("");
     const [registrationType, setRegistrationType] = useState("E-commerce operator");
 
   const [invoiceConfig, setInvoiceConfig] = useState({
-    prefix: "Tax/2025-26",
+    prefix: "Tax/" + getFinancialYearLabel(),
     zero: '',
     start: '',
     manual_pre: false
@@ -590,7 +591,7 @@ const handleGSTChange = (e) => {
                           {/* <input
                             value={invoiceNo}
                             onChange={(e) => setInvoiceNo(e.target.value)}
-                            placeholder="Tax/2025-26/001"
+                            placeholder={"Tax/" + getFinancialYearLabel() + "/001"}
                             readOnly={!manualEntry}
                           /> */}
                           <input

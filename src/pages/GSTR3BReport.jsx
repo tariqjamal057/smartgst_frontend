@@ -1,3 +1,4 @@
+import { getFinancialYearLabel } from "../utils/financialYear";
 import { useState, useEffect } from "react";
 import { useOutletContext } from "react-router-dom";
 import * as XLSX from "xlsx";
@@ -67,10 +68,10 @@ const GSTR3BReport = () => {
   };
 
   const fill31 = (workbook) => {
-    setCellValue(workbook, "GSTR-3B - 3.1", "D5", company.gstin || "09ABCDE1234F1Z5");
-    setCellValue(workbook, "GSTR-3B - 3.1", "D6", company.company_name || "TAXMATE TECHNOLOGY PRIVATE LIMITED");
-    setCellValue(workbook, "GSTR-3B - 3.1", "D7", company.trade_name || "TAXMATE TECHNOLOGY PRIVATE LIMITED");
-    setCellValue(workbook, "GSTR-3B - 3.1", "J2", company.financial_year || "2025-26");
+    setCellValue(workbook, "GSTR-3B - 3.1", "D5", company.gstin || "");
+    setCellValue(workbook, "GSTR-3B - 3.1", "D6", company.company_name || "");
+    setCellValue(workbook, "GSTR-3B - 3.1", "D7", company.trade_name || "");
+    setCellValue(workbook, "GSTR-3B - 3.1", "J2", company.financial_year || getFinancialYearLabel());
     setCellValue(workbook, "GSTR-3B - 3.1", "J3", "Apr-Mar");
     reportData.forEach((item, index) => {
       const row = 12 + index;
@@ -138,8 +139,8 @@ const GSTR3BReport = () => {
     doc.setFontSize(18);
     doc.text("GSTR-3B Report", 14, 20);
     doc.setFontSize(11);
-    doc.text(`Company : ${company.company_name || "TAXMATE TECHNOLOGY PRIVATE LIMITED"}`, 14, 32);
-    doc.text(`GSTIN : ${company.gstin || "09ABCDE1234F1Z5"}`, 14, 40);
+    doc.text(`Company : ${company.company_name || "—"}`, 14, 32);
+    doc.text(`GSTIN : ${company.gstin || "—"}`, 14, 40);
     doc.text(`Mode : ${mode === "month" ? "Monthly" : "Quarterly"}`, 14, 48);
 
     autoTable(doc, {

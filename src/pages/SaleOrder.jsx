@@ -1,3 +1,4 @@
+import { getFinancialYearLabel } from "../utils/financialYear";
 import { useState,useEffect,useMemo } from "react";
 import { useOutletContext,useNavigate } from "react-router-dom";
 import { FaTrash ,FaSearch,FaUniversity,FaTruck,FaPen,FaSave,
@@ -111,7 +112,7 @@ export default function SaleOrder() {
     const [showInvoiceSettings, setShowInvoiceSettings] = useState(false);
     const [currentCount, setCurrentCount] = useState(1);
     const [crConfig, setCrConfig] = useState({
-       prefix: "Tax/2025-26",
+       prefix: "Tax/" + getFinancialYearLabel(),
        zero: '',
        start: '',
        manual_pre: false

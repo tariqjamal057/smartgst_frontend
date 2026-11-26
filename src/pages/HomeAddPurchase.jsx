@@ -2,23 +2,26 @@ import React, { useState, useEffect } from "react";
 import * as services from "../api/services";
 // import "./App.css";s
 
-const companyState = "Gujarat";
-
 const HomeAddPurchase = () => {
 
   const [customersList, setCustomersList] = useState([]);
   const [itemsData, setItemsData] = useState([]);
+  const [companyState, setCompanyState] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [customersRes, itemsRes] = await Promise.all([
+        const [customersRes, itemsRes, companyRes] = await Promise.all([
           services.getParties({ party_type: "VENDOR" }),
           services.getItems(),
+          services.getCompanySettings(),
         ]);
         setCustomersList(customersRes.data.results || customersRes.data);
         setItemsData(itemsRes.data.results || itemsRes.data);
+        const companyData = companyRes.data.results || companyRes.data;
+        const activeCompany = Array.isArray(companyData) ? companyData[0] : companyData;
+        setCompanyState(activeCompany?.state || "");
       } catch (err) {
         console.error("Failed to fetch data:", err);
       } finally {
@@ -79,7 +82,7 @@ const HomeAddPurchase = () => {
 
     let cgst = 0, sgst = 0, igst = 0;
 
-    if (state === companyState) {
+    if (companyState && state === companyState) {
       cgst = taxAmt / 2;
       sgst = taxAmt / 2;
     } else {

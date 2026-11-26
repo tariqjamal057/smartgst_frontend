@@ -225,119 +225,46 @@ const BalanceSheet = () => {
     showVertical: false,
   });
   const [company, setCompany] = useState({
-  name: "TaxMate Technology Pvt Ltd",
+  name: "",
 });
 
-  // 🔥 TEMP DATA (REPLACE WITH API)
   const [data, setData] = useState({
-  liabilities: [
-    {
-      group: "Capital Account",
-      total: 10432440,
-      items: [
-        { name: "Opening Capital", amount: 10052634 },
-        { name: "Add Net Profit", amount: 730256 },
-        { name: "Less Drawings", amount: 350450, type: "minus" },
-      ],
-    },
-    {
-      group: "Secured Loans",
-      total: 1872966,
-      items: [
-        { name: "Aditya Birla Fin.", amount: 433965 },
-        { name: "Bajaj Finance", amount: 667573 },
-        { name: "Cholamandalam", amount: 557022 },
-        { name: "ICICI Bank", amount: 214406 },
-      ],
-    },
-    {
-      group: "Unsecured Loans",
-      total: 2057062,
-      items: [
-        { name: "Nahid Saifi", amount: 1092462 },
-        { name: "Sazzad Ali", amount: 964600 },
-      ],
-    },
-    {
-      group: "Sundry Creditors",
-      total: 11229517,
-      items: [
-        { name: "Outstanding Balances", amount: 0 },
-      ],
-    },
-    {
-      group: "Outstanding Balances",
-      total: 44936,
-      items: [
-        { name: "Accounting Charges", amount: 10000 },
-        { name: "Audit Fees", amount: 10000 },
-        { name: "Mandi Samiti Tax", amount: 24936 },
-      ],
-    },
-  ],
-
-  assets: [
-    {
-      group: "Fixed Assets",
-      total: 813693,
-      items: [
-        { name: "Bike", amount: 58648 },
-        { name: "Fan & Cooler", amount: 15660 },
-        { name: "Furniture", amount: 277333 },
-        { name: "Machinery", amount: 339239 },
-        { name: "Teen Sheet", amount: 48003 },
-        { name: "Tools", amount: 73928 },
-      ],
-    },
-    {
-      group: "Current Assets",
-      total: 2453134,
-      items: [
-        { name: "Closing Stock", amount: 2362403 },
-        { name: "Sundry Debtors", amount: 12451 },
-        { name: "BID Security", amount: 50000 },
-        { name: "Cash in hand", amount: 44250 },
-      ],
-    },
-    {
-      group: "Bank Balances",
-      total: 104277,
-      items: [
-        { name: "HDFC Bank", amount: 104277 },
-      ],
-    },
-    {
-      group: "GST Credit Ledgers",
-      total: 187417,
-      items: [
-        { name: "IGST", amount: 140985 },
-        { name: "CGST", amount: 22949 },
-        { name: "SGST", amount: 23483 },
-        { name: "CESS", amount: 0 },
-      ],
-    },
-  ],
-
-  total: 25636922,
+  liabilities: [],
+  assets: [],
+  total: 0,
 });
 
   useEffect(() => {
-    services.getBalanceSheet({
-      from_date: fromDate || undefined,
-      to_date: toDate || undefined,
-    }).then(res => {
-      const apiData = res.data;
-      if (apiData && apiData.liabilities && apiData.assets) {
+    let cancelled = false;
+    Promise.all([
+      services.getBalanceSheet({
+        from_date: fromDate || undefined,
+        to_date: toDate || undefined,
+      }),
+      services.getCompanySettings(),
+    ]).then(([bsRes, companyRes]) => {
+      if (cancelled) return;
+      const apiData = bsRes.data;
+      if (apiData && Array.isArray(apiData.liabilities) && Array.isArray(apiData.assets)) {
         setData(apiData);
       }
-    }).catch(() => {});
+      const companyData = companyRes.data.results || companyRes.data;
+      if (Array.isArray(companyData) && companyData.length > 0) {
+        setCompany(companyData[0]);
+      } else if (companyData && companyData.name) {
+        setCompany(companyData);
+      }
+    }).catch(() => {
+      if (!cancelled) setData({ liabilities: [], assets: [], total: 0 });
+    });
+    return () => { cancelled = true; };
   }, [fromDate, toDate]);
 
   // 🔹 GENERATE ROWS (same logic as P&L)
   const generateRows = (groups) => {
   const rows = [];
 
-  groups.forEach((g) => {
+  (groups || []).forEach((g) => {
     // GROUP ROW
     rows.push({
       type: "group",
@@ -346,7 +273,7 @@ const BalanceSheet = () => {
     });
 
     // CHILD ROWS
-    g.items.forEach((item) => {
+    (g.items || []).forEach((item) => {
       rows.push({
         type: "child",
         name: item.name,
@@ -412,6 +339,16 @@ const BalanceSheet = () => {
 
   const rows = syncRows(leftRows, rightRows);
 
+  const formatDisplayDate = (value) => {
+    if (!value) return "";
+    const [y, m, d] = value.split("-");
+    return `${d}-${m}-${y}`;
+  };
+  const fyStart = new Date().getMonth() >= 3 ? new Date().getFullYear() : new Date().getFullYear() - 1;
+  const subtitle = (fromDate || toDate)
+    ? `${formatDisplayDate(fromDate) || "—"} to ${formatDisplayDate(toDate) || "—"}`
+    : `(01-04-${fyStart} to 31-03-${fyStart + 1})`;
+
   return (
     <div className={`main ${collapsed ? "collapsed" : ""}`}>
 
@@ -432,12 +369,12 @@ const BalanceSheet = () => {
 
         {/* COMPANY NAME */}
         <div className="bs-company">
-          {company.name}
+          {company.name || "—"}
         </div>
 
         {/* SUB TITLE */}
         <div className="bs-subtitle">
-          (01-04-2024 to 31-03-2025)
+          {subtitle}
         </div>
         {/* FILTER */}
         <div className="bs-filter">

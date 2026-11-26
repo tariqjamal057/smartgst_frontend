@@ -24,7 +24,7 @@ ChartJS.register(
 
 export default function BankReconciliation() {
   const { collapsed } = useOutletContext();
-  const [selectedYear, setSelectedYear] = useState("2025");
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
   const [reconciliations, setReconciliations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -81,23 +81,20 @@ export default function BankReconciliation() {
     return result;
   }, [reconciliations]);
 
-  // Fallback data if no API data
-  const hasData = yearlyData[selectedYear] && yearlyData[selectedYear].length > 0;
-  const data = hasData
-    ? yearlyData[selectedYear]
-    : [
-        { month: "Jan", income: 0, expense: 0 },
-        { month: "Feb", income: 0, expense: 0 },
-        { month: "Mar", income: 0, expense: 0 },
-        { month: "Apr", income: 0, expense: 0 },
-      ];
+  const data = hasData ? yearlyData[selectedYear] : [];
 
   const calculated = useMemo(() => {
     const totalIncome = data.reduce((a, b) => a + b.income, 0);
     const totalExpense = data.reduce((a, b) => a + b.expense, 0);
     const netProfit = totalIncome - totalExpense;
-    const receivables = totalIncome * 0.15;
-    const payables = totalExpense * 0.12;
+    const receivables = reconciliations.reduce(
+      (sum, item) => sum + (Number(item.receivable ?? item.receivables) || 0),
+      0
+    );
+    const payables = reconciliations.reduce(
+      (sum, item) => sum + (Number(item.payable ?? item.payables) || 0),
+      0
+    );
 
     return {
       totalIncome,
@@ -107,7 +104,7 @@ export default function BankReconciliation() {
       payables,
       netPosition: receivables - payables
     };
-  }, [data]);
+  }, [data, reconciliations]);
 
   const chartOptions = {
     responsive: true,
@@ -150,8 +147,8 @@ export default function BankReconciliation() {
             { title: "Total Income", value: calculated.totalIncome, data: data.map(d => d.income), color: "#34d399" },
             { title: "Total Expenses", value: calculated.totalExpense, data: data.map(d => d.expense), color: "#fb923c" },
             { title: "Net Profit", value: calculated.netProfit, data: data.map(d => d.income - d.expense), color: "#60a5fa" },
-            { title: "Receivables", value: calculated.receivables, data: data.map(d => d.income * 0.15), color: "#34d399" },
-            { title: "Payables", value: calculated.payables, data: data.map(d => d.expense * 0.12), color: "#fb923c" }
+            { title: "Receivables", value: calculated.receivables, data: data.map(() => 0), color: "#34d399" },
+            { title: "Payables", value: calculated.payables, data: data.map(() => 0), color: "#fb923c" }
           ].map((item, i) => (
             <div className="BankReconciliation-kpi-card" key={i}>
               <div className="BankReconciliation-chart-bg">
@@ -182,10 +179,7 @@ export default function BankReconciliation() {
                     <option key={year} value={year}>{year}</option>
                   ))
                 ) : (
-                  <>
-                    <option value="2025">2025</option>
-                    <option value="2024">2024</option>
-                  </>
+                  <option value={new Date().getFullYear()}>{new Date().getFullYear()}</option>
                 )}
               </select>
             </div>
@@ -200,6 +194,11 @@ export default function BankReconciliation() {
                 </tr>
               </thead>
               <tbody>
+                {data.length === 0 && (
+                  <tr>
+                    <td colSpan={4} style={{ textAlign: "center" }}>No bank reconciliation data available.</td>
+                  </tr>
+                )}
                 {data.map((item, i) => (
                   <tr key={i}>
                     <td>{item.month}</td>

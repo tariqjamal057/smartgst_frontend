@@ -1,3 +1,4 @@
+import { getFinancialYearLabel } from "../utils/financialYear";
 import { useState, useEffect, useMemo } from "react";
 import { useOutletContext } from "react-router-dom";
 import { FaTrash ,FaSearch,FaUniversity,FaTruck,FaPen,FaSave,
@@ -316,7 +317,7 @@ const [ewayDate, setEwayDate] = useState(new Date());
   };
 
   const [dnConfig, setDnConfig] = useState({
-       prefix: "Tax/2025-26",
+       prefix: "Tax/" + getFinancialYearLabel(),
        zero: '',
        start: '',
        manual_pre: false

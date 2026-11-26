@@ -1,3 +1,4 @@
+import { getFinancialYearLabel } from "../utils/financialYear";
 import { useState, useEffect } from "react";
 import { useOutletContext } from "react-router-dom";
 import DatePicker from "react-datepicker";
@@ -10,7 +11,7 @@ export default function Contra() {
   const [invoiceDate, setInvoiceDate] = useState(new Date());
 
   /* ================= VOUCHER NUMBER ================= */
-  const VOUCHER_PREFIX = "CON/2025-26";
+  const VOUCHER_PREFIX = "CON/" + getFinancialYearLabel();
   const [currentCount, setCurrentCount] = useState(1);
   const [voucherNo, setVoucherNo] = useState(`${VOUCHER_PREFIX}/0001`);
   useEffect(() => {

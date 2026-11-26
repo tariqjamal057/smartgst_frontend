@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { getFinancialYearLabel } from "../utils/financialYear";
 import { useOutletContext } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
@@ -66,7 +67,7 @@ const GSTR2Report = () => {
       XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
     };
 
-    createSheet("General", [["Company Name", "GSTIN", "Financial Year"], [company.company_name || "Tax Mate enterprices", company.gstin || "09ABCDE1234F1Z5", company.financial_year || "2024-25"]]);
+    createSheet("General", [["Company Name", "GSTIN", "Financial Year"], [company.company_name || "", company.gstin || "", company.financial_year || getFinancialYearLabel()]]);
 
     const registered = purchaseData.filter((i) => i.gstin);
     const unregistered = purchaseData.filter((i) => !i.gstin);

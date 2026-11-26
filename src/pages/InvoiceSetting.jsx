@@ -1,3 +1,4 @@
+import { getFinancialYearLabel } from "../utils/financialYear";
 import { useState, useEffect } from "react";
 import { useOutletContext } from "react-router-dom";
 import * as services from "../api/services";
@@ -60,7 +61,7 @@ const PRINTING_SETTINGS = {
   terms: ""
 };
 
-const EMPTY_VOUCHER_CONFIG = { prefix: "Tax/2025-26", zero: "", start: 1, manual: false };
+const EMPTY_VOUCHER_CONFIG = { prefix: "Tax/" + getFinancialYearLabel(), zero: "", start: 1, manual: false };
 
 const extractError = (err, fallback) => {
   const data = err.response?.data;

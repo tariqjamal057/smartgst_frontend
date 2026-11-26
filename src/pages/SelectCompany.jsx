@@ -1,3 +1,4 @@
+import { getFinancialYearLabel } from "../utils/financialYear";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 import "../styles/selectCompany.css";
@@ -34,7 +35,7 @@ export default function SelectCompany({ onClose, onSave }) {
   const dropdownRef = useRef(null);
   
   // GST Details
-  const [financialYear, setFinancialYear] = useState("2024-25");
+  const [financialYear, setFinancialYear] = useState(getFinancialYearLabel());
   const [bookBeginning, setBookBeginning] = useState("");
   const [returnType, setReturnType] = useState("Monthly");
   const [registrationType, setRegistrationType] = useState("Regular");
@@ -774,7 +775,7 @@ const handleGetGST = async () => {
                     <div className="popup-field">
                       <label>Financial Year</label>
                       <input 
-                        placeholder="2024-25"
+                        placeholder={getFinancialYearLabel()}
                         value={financialYear}
                         onChange={(e) => setFinancialYear(e.target.value)}
                       />

@@ -1,3 +1,4 @@
+import { getFinancialYearLabel } from "../utils/financialYear";
 import { useState,useEffect,useMemo } from "react";
 import { useOutletContext,useNavigate } from "react-router-dom";
 import DatePicker from "react-datepicker";
@@ -64,7 +65,7 @@ export default function PurchaseOrder() {
   const [currentCount, setCurrentCount] = useState(1);
   const [voucherCount, setVoucherCount] = useState(1);
   const [crConfig, setCrConfig] = useState({
-     prefix: "PO/2025-26",
+     prefix: "PO/" + getFinancialYearLabel(),
      zero: '',
      start: '',
      manual_pre: false
