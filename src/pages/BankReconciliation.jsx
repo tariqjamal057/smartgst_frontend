@@ -81,7 +81,7 @@ export default function BankReconciliation() {
     return result;
   }, [reconciliations]);
 
-  const data = hasData ? yearlyData[selectedYear] : [];
+  const data = yearlyData[selectedYear] || [];
 
   const calculated = useMemo(() => {
     const totalIncome = data.reduce((a, b) => a + b.income, 0);

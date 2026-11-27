@@ -30,7 +30,7 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "CI=false react-scripts build",
+    "build": "node -e \"process.env.CI='false';const {spawnSync}=require('child_process');const r=spawnSync(process.execPath,[require.resolve('react-scripts/bin/react-scripts.js'),'build'],{stdio:'inherit'});process.exit(r.status==null?1:r.status)\"",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
